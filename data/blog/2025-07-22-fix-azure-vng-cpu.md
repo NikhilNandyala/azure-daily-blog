@@ -1,0 +1,11 @@
+---
+title: "Fixing Azure VNG CPU Spikes"
+date: "2025-07-22"
+summary: "How to detect and resolve high CPU issues on Azure Virtual Network Gateways"
+tags: ["Azure", "Networking", "VNG"]
+---
+
+If you're seeing random spikes to 100% CPU on your Azure Virtual Network Gateway...
+
+🔧 Here's how to investigate it using Azure Monitor logs, and what SKU upgrades may help...
+
