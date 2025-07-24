@@ -1,7 +1,9 @@
 {
-  "azure": 2,
-  "networking": 2,
+  "azure": 3,
+  "networking": 3,
   "vng": 1,
   "firewall": 1,
-  "troubleshooting": 1
+  "troubleshooting": 1,
+  "expressroute": 1,
+  "architecture": 1
 }

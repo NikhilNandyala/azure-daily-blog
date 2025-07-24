@@ -1,5 +1,8 @@
 # Ignore build artifacts and generated folders
-.next
-.contentlayer
-node_modules
-
+// eslint.config.mjs
+export default [
+  {
+    ignores: ['.next/**/*', 'node_modules/**/*'],
+    // existing config...
+  },
+]
