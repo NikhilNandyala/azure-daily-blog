@@ -1,16 +1,16 @@
 ---
-title:  ExpressRoute Design Changes: Scaling for Segmentation & HA"
-date: "2025-07-24"
-tags: ["Azure", "Networking", "ExpressRoute", "Architecture"]
+title: 'ExpressRoute Design Changes: Scaling for Segmentation & HA'
+date: '2025-07-24'
+tags: ['Azure', 'Networking', 'ExpressRoute', 'Architecture']
 ---
 
-##Goal
+## Goal
 
 This document outlines a recent shift in ExpressRoute architecture to improve **scalability**, **segmentation**, and **high availability (HA)**. The previous design had several technical limitations that became bottlenecks as the cloud footprint expanded.
 
 ---
 
-#Previous Topology
+# Previous Topology
 
 The legacy ExpressRoute configuration was built using:
 
@@ -43,7 +43,7 @@ The revised architecture leverages:
 
 ###Previous Design
 
-```mermaid
+```
 graph TD
     A[On-Prem Router] -->|BGP/Private Peering| B[ER Circuit (Standard)]
     B --> C[ER Gateway (Hub VNet)]
@@ -54,7 +54,7 @@ graph TD
 
 ###New Design
 
-```mermaid
+```
 graph TD
     A1[On-Prem DC - South Central] -->|BGP| B1[ER Circuit - South Central (Premium)]
     A2[On-Prem DC - East] -->|BGP| B2[ER Circuit - East (Premium)]
