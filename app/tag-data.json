@@ -1,5 +1,7 @@
 {
-  "azure": 1,
-  "networking": 1,
-  "vng": 1
+  "azure": 2,
+  "networking": 2,
+  "vng": 1,
+  "firewall": 1,
+  "troubleshooting": 1
 }
