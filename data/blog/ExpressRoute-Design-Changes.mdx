@@ -28,7 +28,7 @@ The legacy ExpressRoute configuration was built using:
 
 ---
 
-##  New Design Highlights
+#  New Design Highlights
 
 The revised architecture leverages:
 
@@ -39,9 +39,9 @@ The revised architecture leverages:
 
 ---
 
-##Architecture Diagrams
+# Architecture Diagrams
 
-###Previous Design
+# Previous Design
 
 ```
 graph TD
@@ -52,7 +52,7 @@ graph TD
     C --> D3[Spoke VNet 3]
 ```
 
-###New Design
+# New Design
 
 ```
 graph TD
@@ -109,7 +109,7 @@ Impact: Improved BCDR and removed prefix limit error observed during routing upd
 
 ---
 
-## ðŸ§ª PowerShell Validation Script
+## PowerShell Validation Script
 
 ```powershell
 # Get ExpressRoute Circuit Details
@@ -159,7 +159,3 @@ output "gateway_bgp_settings" {
 ```
 
 ---
-
-## Tags
-
-`Azure` `Networking` `ExpressRoute` `Architecture`
