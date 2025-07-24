@@ -1,0 +1,5 @@
+# Ignore build artifacts and generated folders
+.next
+.contentlayer
+node_modules
+
