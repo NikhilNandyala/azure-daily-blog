@@ -1,0 +1,28 @@
+---
+title: 'Azure Firewall Troubleshooting Guide'
+date: '2025-07-23'
+tags: ['Azure', 'Firewall', 'Networking', 'Troubleshooting']
+summary: 'Step-by-step guide for diagnosing and resolving Azure Firewall SNAT and traffic flow issues.'
+images: ['/static/images/firewall-troubleshoot.png']
+draft: false
+---
+
+## Problem Statement
+
+We faced issues with SNAT exhaustion on Azure Firewall leading to intermittent connectivity issues.
+
+## Root Cause
+
+- Overlapping UDRs and custom DNS resolution.
+- SNAT port depletion due to high volume outbound traffic.
+
+## Resolution
+
+1. Enabled Forced Tunneling to reroute internet-bound traffic.
+2. Added NAT rules to reduce port consumption.
+3. Upgraded SKU and deployed additional IPs.
+
+## References
+
+- [Azure SNAT Troubleshooting](https://learn.microsoft.com/en-us/azure/firewall/troubleshoot)
+- [Azure Firewall Logs via Log Analytics](https://learn.microsoft.com/en-us/azure/firewall/logs)

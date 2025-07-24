@@ -1,6 +1,6 @@
 /** @type {import("pliny/config").PlinyConfig } */
 const siteMetadata = {
-  title: 'Azure Blog',
+  title: 'AzureFixes',
   author: 'Nikhil Nandyala',
   headerTitle: 'AzureFixes',
   description: 'This blog is for Azure Troubleshooting',
