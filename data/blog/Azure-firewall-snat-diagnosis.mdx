@@ -5,8 +5,6 @@ tags: [Azure, Firewall, Networking, SNAT, Troubleshooting]
 summary: Learn how to diagnose and mitigate SNAT port exhaustion issues in Azure Firewall.
 ---
 
-import Callout from '@/components/Callout'
-
 # Diagnosing Azure Firewall SNAT Limits
 
 When outbound traffic from private Azure subnets is routed through Azure Firewall, **Source Network Address Translation (SNAT)** is applied. Each SNAT translation consumes a **port** on one of the firewall’s public IP addresses. Hitting SNAT port limits can cause serious outbound connectivity issues.
@@ -109,10 +107,7 @@ Use a **Network Virtual Appliance (NVA)** for outbound traffic:
 - No SNAT limits like Azure Firewall
 - Can be tailored for high connection loads
 
-<Callout type="info">
-  For high-throughput workloads with repeated connections to a fixed public destination, consider
-  using **Azure NAT Gateway** instead of Firewall for SNAT.
-</Callout>
+> For high-throughput workloads with repeated connections to a fixed public destination, consider using **Azure NAT Gateway** instead of Firewall for SNAT.
 
 ## Related Resources
 
