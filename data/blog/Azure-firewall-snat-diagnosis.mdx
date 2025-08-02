@@ -1,0 +1,125 @@
+---
+title: Diagnosing Azure Firewall SNAT Limits
+date: 2025-08-02
+tags: [Azure, Firewall, Networking, SNAT, Troubleshooting]
+summary: Learn how to diagnose and mitigate SNAT port exhaustion issues in Azure Firewall.
+---
+
+import Callout from '@/components/Callout'
+
+# Diagnosing Azure Firewall SNAT Limits
+
+When outbound traffic from private Azure subnets is routed through Azure Firewall, **Source Network Address Translation (SNAT)** is applied. Each SNAT translation consumes a **port** on one of the firewall’s public IP addresses. Hitting SNAT port limits can cause serious outbound connectivity issues.
+
+## What is Azure Firewall SNAT?
+
+When internal clients access public endpoints through Azure Firewall, the firewall translates the source IP address of each connection to one of its own **public IPs**, using a **SNAT port**.
+
+## SNAT Port Limits
+
+| Factor                  | Limit                               |
+| ----------------------- | ----------------------------------- |
+| Per Public IP           | 64,000 SNAT ports                   |
+| Per Destination IP:Port | ~1,024 ports per public IP          |
+| Default (Single IP)     | 2,496 ports to a single destination |
+| Scales With             | Number of Public IPs attached       |
+
+Each client-to-destination connection uses a port. If too many clients or too many connections target the same destination (e.g., `microsoft.com:443`), port exhaustion can occur.
+
+## Symptoms of SNAT Exhaustion
+
+- Outbound connection failures
+- Intermittent or stuck HTTP calls
+- TCP connection resets or timeouts
+- Frequent `SnatPortExhausted` errors in logs
+- Data uploads/downloads fail partially or intermittently
+
+## Diagnostic Steps
+
+### 1. Enable Azure Firewall Diagnostic Logs
+
+```json
+{
+  "operationName": "AzureFirewallSNAT",
+  "msg": "SNAT port exhausted",
+  "srcIp": "10.1.2.3",
+  "dstIp": "52.109.12.34",
+  "protocol": "TCP",
+  "srcPort": "34567",
+  "dstPort": "443"
+}
+```
+
+> Enable log category: `AzureFirewallSnat`
+
+### 2. Review Azure Monitor Metrics
+
+Track:
+
+- `SNAT Port Utilization`
+- `SNAT Allocation Count`
+- `SNAT Port Exhausted Count`
+
+Set alerts if utilization exceeds 70–80% consistently.
+
+### 3. Use Network Watcher Packet Capture
+
+Capture traffic on the Azure Firewall:
+
+- Analyze how many unique destinations are being hit
+- Check for frequent short-lived connections
+- See if a few destinations dominate SNAT consumption
+
+### 4. Flow Log or Traffic Analytics Review
+
+Use Traffic Analytics or NSG Flow Logs to find:
+
+- High-frequency clients
+- Unusual port churn
+- Top destination endpoints
+
+## Mitigation Strategies
+
+### Add More Public IPs
+
+Each additional **Standard Public IP** adds 64,000 ports.
+
+```bash
+3 IPs = 3 × 64,000 = 192,000 SNAT ports
+```
+
+### Application Optimization
+
+- Reuse TCP connections (connection pooling)
+- Avoid frequent open/close of sockets
+- Minimize simultaneous outbound calls
+
+### Use User Defined Routes
+
+Split outbound traffic by workload or subnet:
+
+```plaintext
+Route critical workload through a dedicated firewall
+```
+
+### Offload to NVA
+
+Use a **Network Virtual Appliance (NVA)** for outbound traffic:
+
+- No SNAT limits like Azure Firewall
+- Can be tailored for high connection loads
+
+<Callout type="info">
+  For high-throughput workloads with repeated connections to a fixed public destination, consider
+  using **Azure NAT Gateway** instead of Firewall for SNAT.
+</Callout>
+
+## Related Resources
+
+- [Azure Firewall SNAT documentation](https://learn.microsoft.com/en-us/azure/firewall/snat-overview)
+- [Azure Firewall SNAT troubleshooting](https://learn.microsoft.com/en-us/azure/firewall/troubleshoot#snat-port-exhaustion)
+- [Azure NAT Gateway](https://learn.microsoft.com/en-us/azure/nat-gateway/nat-overview)
+
+---
+
+_Pro Tip_: SNAT issues are more common when hundreds of short-lived HTTPS connections go to a few IPs like `*.windowsupdate.com`, `*.microsoftonline.com`, or your SIEM endpoints. These are classic culprits. Rotate IPs or distribute traffic smartly.
