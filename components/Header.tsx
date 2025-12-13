@@ -42,6 +42,9 @@ const Header = () => {
         </div>
         <SearchButton />
         <ThemeSwitch />
+        <button className="rounded-md bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 dark:bg-primary-400 dark:hover:bg-primary-500">
+          Login
+        </button>
         <MobileNav />
       </div>
     </header>
