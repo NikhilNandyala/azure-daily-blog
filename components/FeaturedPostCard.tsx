@@ -8,7 +8,7 @@ interface FeaturedPostCardProps {
     slug: string
     date: string
     title: string
-    summary: string
+    summary?: string
     tags: string[]
   }
   variant?: 'large' | 'small'
@@ -34,7 +34,7 @@ const FeaturedPostCard = ({ post, variant = 'small' }: FeaturedPostCardProps) =>
           </Link>
         </h3>
         <p className={`text-gray-600 dark:text-gray-400 mb-4 ${isLarge ? '' : 'text-sm line-clamp-2'}`}>
-          {post.summary}
+          {post.summary || 'No summary available'}
         </p>
         <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
           <time dateTime={post.date}>{formatDate(post.date, siteMetadata.locale)}</time>
