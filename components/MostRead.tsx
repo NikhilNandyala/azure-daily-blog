@@ -1,4 +1,5 @@
 import Link from '@/components/Link'
+import SidebarCard from '@/components/SidebarCard'
 
 const mockMostRead = [
   { title: 'Azure Firewall SNAT Diagnosis', slug: 'Azure-firewall-snat-diagnosis' },
@@ -9,8 +10,7 @@ const mockMostRead = [
 
 export default function MostRead() {
   return (
-    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
-      <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Most Read</h3>
+    <SidebarCard title="Most Read">
       <ul className="space-y-3">
         {mockMostRead.map((post, index) => (
           <li key={post.slug} className="flex items-start">
@@ -24,6 +24,6 @@ export default function MostRead() {
           </li>
         ))}
       </ul>
-    </div>
+    </SidebarCard>
   )
 }
