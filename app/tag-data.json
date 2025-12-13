@@ -1,9 +1,10 @@
 {
-  "azure": 3,
-  "networking": 3,
+  "azure": 4,
+  "networking": 4,
   "vng": 1,
-  "firewall": 1,
-  "troubleshooting": 1,
+  "firewall": 2,
+  "snat": 1,
+  "troubleshooting": 2,
   "expressroute": 1,
   "architecture": 1
 }
