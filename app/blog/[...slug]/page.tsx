@@ -1,120 +1,161 @@
 import 'css/prism.css'
 import 'katex/dist/katex.css'
 
-import PageTitle from '@/components/PageTitle'
-import { components } from '@/components/MDXComponents'
-import { MDXLayoutRenderer } from 'pliny/mdx-components'
-import { sortPosts, coreContent, allCoreContent } from 'pliny/utils/contentlayer'
-import { allBlogs, allAuthors } from 'contentlayer/generated'
-import type { Authors, Blog } from 'contentlayer/generated'
-import PostSimple from '@/layouts/PostSimple'
-import PostLayout from '@/layouts/PostLayout'
-import PostBanner from '@/layouts/PostBanner'
-import { Metadata } from 'next'
-import siteMetadata from '@/data/siteMetadata'
 import { notFound } from 'next/navigation'
+import { draftMode } from 'next/headers'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import Link from '@/components/Link'
+import SectionContainer from '@/components/SectionContainer'
+import { getSiteSettings } from '@/lib/sanity/getSiteSettings'
+import { getPostBySlug, getAllPostSlugs } from '@/lib/sanity/queriesDraft'
+import { getSanityClient } from '@/lib/sanity/getClient'
+import { SanityPortableText } from '@/components/SanityPortableText'
+import { SanityCoverImage } from '@/components/SanityImage'
+import { buildPostMetadata, generateBlogPostSchema } from '@/lib/sanity/seo'
+import { DraftModeBanner } from '@/components/DraftModeBanner'
 
-const defaultLayout = 'PostLayout'
-const layouts = {
-  PostSimple,
-  PostLayout,
-  PostBanner,
-}
+// Revalidate every 24 hours
+export const revalidate = 86400
 
-export async function generateMetadata(props: {
-  params: Promise<{ slug: string[] }>
-}): Promise<Metadata | undefined> {
+export async function generateMetadata(props: { params: Promise<{ slug: string[] }> }) {
   const params = await props.params
-  const slug = decodeURI(params.slug.join('/'))
-  const post = allBlogs.find((p) => p.slug === slug)
-  const authorList = post?.authors || ['default']
-  const authorDetails = authorList.map((author) => {
-    const authorResults = allAuthors.find((p) => p.slug === author)
-    return coreContent(authorResults as Authors)
-  })
-  if (!post) {
-    return
-  }
+  const slug = params.slug[0]
+  const client = await getSanityClient()
 
-  const publishedAt = new Date(post.date).toISOString()
-  const modifiedAt = new Date(post.lastmod || post.date).toISOString()
-  const authors = authorDetails.map((author) => author.name)
-  let imageList = [siteMetadata.socialBanner]
-  if (post.images) {
-    imageList = typeof post.images === 'string' ? [post.images] : post.images
-  }
-  const ogImages = imageList.map((img) => {
-    return {
-      url: img && img.includes('http') ? img : siteMetadata.siteUrl + img,
-    }
-  })
+  const post = await getPostBySlug(client, slug)
+  const settings = await getSiteSettings(client)
 
-  return {
-    title: post.title,
-    description: post.summary,
-    openGraph: {
-      title: post.title,
-      description: post.summary,
-      siteName: siteMetadata.title,
-      locale: 'en_US',
-      type: 'article',
-      publishedTime: publishedAt,
-      modifiedTime: modifiedAt,
-      url: './',
-      images: ogImages,
-      authors: authors.length > 0 ? authors : [siteMetadata.author],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: post.title,
-      description: post.summary,
-      images: imageList,
-    },
-  }
+  if (!post) return undefined
+
+  return buildPostMetadata(post, settings)
 }
 
-export const generateStaticParams = async () => {
-  return allBlogs.map((p) => ({ slug: p.slug.split('/').map((name) => decodeURI(name)) }))
+export async function generateStaticParams() {
+  const { client } = await import('@/lib/sanity/client')
+  const slugs = await getAllPostSlugs(client)
+  return slugs.map((item) => ({ slug: [item.current] }))
 }
 
-export default async function Page(props: { params: Promise<{ slug: string[] }> }) {
+export default async function PostPage(props: { params: Promise<{ slug: string[] }> }) {
   const params = await props.params
-  const slug = decodeURI(params.slug.join('/'))
-  // Filter out drafts in production
-  const sortedCoreContents = allCoreContent(sortPosts(allBlogs))
-  const postIndex = sortedCoreContents.findIndex((p) => p.slug === slug)
-  if (postIndex === -1) {
-    return notFound()
+  const slug = params.slug[0]
+  const draft = await draftMode()
+  const client = await getSanityClient()
+
+  const post = await getPostBySlug(client, slug)
+  if (!post) notFound()
+  if (post.status === 'draft' && !draft.isEnabled) notFound()
+
+  const session = await getServerSession(authOptions)
+  const isMembersOnly = post.membersOnly
+  const settings = await getSiteSettings(client)
+
+  if (isMembersOnly && !session) {
+    const callbackUrl = `/blog/${slug}`
+    const loginHref = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="max-w-md rounded-lg border border-white/6 bg-[#111827] p-8 text-center">
+          <p className="text-accent mb-2 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide uppercase">
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+              <path d="M6 10V8a6 6 0 1 1 12 0v2" />
+              <rect x="4" y="10" width="16" height="10" rx="2" />
+            </svg>
+            Members Only
+          </p>
+          <h2 className="text-body mb-3 text-2xl font-bold">Sign in to continue</h2>
+          <p className="text-muted mb-6">
+            This post is reserved for members. Please sign in to unlock the content.
+          </p>
+          <div className="flex justify-center">
+            <Link
+              href={loginHref}
+              className="text-inverse rounded-md bg-[#38BDF8] px-4 py-2 text-sm font-medium hover:bg-[#60A5FA]"
+            >
+              Log in to read
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  const prev = sortedCoreContents[postIndex + 1]
-  const next = sortedCoreContents[postIndex - 1]
-  const post = allBlogs.find((p) => p.slug === slug) as Blog
-  const authorList = post?.authors || ['default']
-  const authorDetails = authorList.map((author) => {
-    const authorResults = allAuthors.find((p) => p.slug === author)
-    return coreContent(authorResults as Authors)
-  })
-  const mainContent = coreContent(post)
-  const jsonLd = post.structuredData
-  jsonLd['author'] = authorDetails.map((author) => {
-    return {
-      '@type': 'Person',
-      name: author.name,
-    }
-  })
-
-  const Layout = layouts[post.layout || defaultLayout]
+  const jsonLd = generateBlogPostSchema(post, settings)
 
   return (
     <>
+      {draft.isEnabled && <DraftModeBanner />}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <Layout content={mainContent} authorDetails={authorDetails} next={next} prev={prev}>
-        <MDXLayoutRenderer code={post.body.code} components={components} toc={post.toc} />
-      </Layout>
+      <SectionContainer>
+        <div className={`xl:divide-y xl:divide-white/6 ${draft.isEnabled ? 'pt-24' : ''}`}>
+          <div className="divide-y divide-white/6 pb-8 xl:col-span-3 xl:pb-0">
+            <header className="py-6">
+              <div className="space-y-1 text-center">
+                {draft.isEnabled && post.status === 'draft' && (
+                  <div className="mb-4 inline-block rounded-full border border-amber-500 bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-600">
+                    DRAFT
+                  </div>
+                )}
+                <dl className="space-y-10">
+                  <div>
+                    <dt className="sr-only">Published on</dt>
+                    <dd className="text-muted text-base leading-6 font-medium">
+                      <time dateTime={post.publishedAt}>
+                        {new Date(post.publishedAt).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </time>
+                    </dd>
+                  </div>
+                </dl>
+                <div>
+                  <h1 className="text-body text-3xl leading-9 font-bold tracking-tight sm:text-4xl sm:leading-10 md:text-5xl md:leading-14">
+                    {post.title}
+                  </h1>
+                </div>
+                {post.tags && post.tags.length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-2 pt-4">
+                    {post.tags.map((tag) => (
+                      <span
+                        key={tag._id}
+                        className="mr-2 inline-block rounded-full bg-gray-200 px-3 py-1 text-sm font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      >
+                        #{tag.title}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </header>
+
+            {post.coverImage && (
+              <div className="relative -mx-6 my-8 w-full md:mx-0">
+                <SanityCoverImage image={post.coverImage} alt={post.title} priority />
+              </div>
+            )}
+
+            <div className="prose dark:prose-invert max-w-none py-6">
+              <SanityPortableText value={post.body} />
+            </div>
+          </div>
+        </div>
+      </SectionContainer>
     </>
   )
 }

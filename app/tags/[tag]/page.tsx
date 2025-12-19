@@ -6,6 +6,8 @@ import { allBlogs } from 'contentlayer/generated'
 import tagData from 'app/tag-data.json'
 import { genPageMetadata } from 'app/seo'
 import { Metadata } from 'next'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 const POSTS_PER_PAGE = 5
 
@@ -48,12 +50,15 @@ export default async function TagPage(props: { params: Promise<{ tag: string }> 
     totalPages: totalPages,
   }
 
+  const session = await getServerSession(authOptions)
+
   return (
     <ListLayout
       posts={filteredPosts}
       initialDisplayPosts={initialDisplayPosts}
       pagination={pagination}
       title={title}
+      isAuthenticated={Boolean(session)}
     />
   )
 }

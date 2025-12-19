@@ -4,6 +4,8 @@ import ListLayout from '@/layouts/ListLayoutWithTags'
 import { allBlogs } from 'contentlayer/generated'
 import tagData from 'app/tag-data.json'
 import { notFound } from 'next/navigation'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 const POSTS_PER_PAGE = 5
 
@@ -42,12 +44,15 @@ export default async function TagPage(props: { params: Promise<{ tag: string; pa
     totalPages: totalPages,
   }
 
+  const session = await getServerSession(authOptions)
+
   return (
     <ListLayout
       posts={filteredPosts}
       initialDisplayPosts={initialDisplayPosts}
       pagination={pagination}
       title={title}
+      isAuthenticated={Boolean(session)}
     />
   )
 }

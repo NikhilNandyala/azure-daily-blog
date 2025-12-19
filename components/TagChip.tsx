@@ -10,7 +10,7 @@ const TagChip = ({ text, count }: TagChipProps) => {
   return (
     <Link
       href={`/tags/${slug(text)}`}
-      className="inline-block bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 px-3 py-1 rounded-full text-sm hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors mr-2 mb-2"
+      className="text-body hover:text-inverse mr-2 mb-2 inline-block rounded-full bg-[#1F2937] px-3 py-1 text-sm transition-colors hover:bg-[#38BDF8]"
     >
       {text} {count !== undefined && `(${count})`}
     </Link>

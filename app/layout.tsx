@@ -9,8 +9,9 @@ import Header from '@/components/Header'
 import SectionContainer from '@/components/SectionContainer'
 import Footer from '@/components/Footer'
 import siteMetadata from '@/data/siteMetadata'
-import { ThemeProviders } from './theme-providers'
+import { Providers } from './providers'
 import { Metadata } from 'next'
+import { SessionProvider } from 'next-auth/react'
 
 const space_grotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -62,11 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const basePath = process.env.BASE_PATH || ''
 
   return (
-    <html
-      lang={siteMetadata.language}
-      className={`${space_grotesk.variable} scroll-smooth`}
-      suppressHydrationWarning
-    >
+    <html lang={siteMetadata.language} className="dark scroll-smooth" suppressHydrationWarning>
       <link
         rel="apple-touch-icon"
         sizes="76x76"
@@ -94,17 +91,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fff" />
       <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000" />
       <link rel="alternate" type="application/rss+xml" href={`${basePath}/feed.xml`} />
-      <body className="bg-white pl-[calc(100vw-100%)] text-black antialiased dark:bg-gray-950 dark:text-white">
-        <ThemeProviders>
+      <body className="text-body bg-[#0B1220] pl-[calc(100vw-100%)] antialiased">
+        <Providers>
           <Analytics analyticsConfig={siteMetadata.analytics as AnalyticsConfig} />
           <SectionContainer>
             <SearchProvider searchConfig={siteMetadata.search as SearchConfig}>
-              <Header />
               <main className="mb-auto">{children}</main>
             </SearchProvider>
             <Footer />
           </SectionContainer>
-        </ThemeProviders>
+        </Providers>
       </body>
     </html>
   )

@@ -7,9 +7,12 @@ interface SidebarCardProps {
 }
 
 const SidebarCard = ({ title, children, className = '' }: SidebarCardProps) => {
+  const DEBUG_LAYOUT = false
   return (
-    <div className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-6 ${className}`}>
-      <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">{title}</h3>
+    <div
+      className={`w-full rounded-lg border border-white/6 bg-[#111827] p-6 ${DEBUG_LAYOUT ? 'ring-2 ring-purple-500' : ''} ${className}`}
+    >
+      <h3 className="text-body mb-4 text-lg font-semibold">{title}</h3>
       {children}
     </div>
   )

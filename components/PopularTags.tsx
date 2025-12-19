@@ -6,11 +6,13 @@ interface PopularTagsProps {
 }
 
 export default function PopularTags({ tags }: PopularTagsProps) {
-  const sortedTags = Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 10)
+  const sortedTags = Object.entries(tags)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
 
   return (
     <SidebarCard title="Popular Tags">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex w-full min-w-0 flex-wrap gap-2 overflow-hidden">
         {sortedTags.map(([tag, count]) => (
           <TagChip key={tag} text={tag} count={count} />
         ))}
