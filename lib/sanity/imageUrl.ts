@@ -1,5 +1,5 @@
-import imageUrlBuilder from '@sanity/image-url'
-import { client } from './client'
+import imageUrlBuilder, { type ImageUrlBuilder } from '@sanity/image-url'
+import { getPublicClient, sanityConfigured } from './client'
 import { SanityImage } from './types'
 
 /**
@@ -7,7 +7,18 @@ import { SanityImage } from './types'
  * Generates optimized image URLs for Sanity image assets
  * Supports responsive sizing, quality optimization, and transformations
  */
-const builder = imageUrlBuilder(client)
+let builder: ImageUrlBuilder | null = null
+
+function getBuilder(): ImageUrlBuilder | null {
+  if (!sanityConfigured) return null
+  if (builder) return builder
+
+  const sanityClient = getPublicClient()
+  if (!sanityClient) return null
+
+  builder = imageUrlBuilder(sanityClient)
+  return builder
+}
 
 /**
  * Generate URL for a Sanity image asset
@@ -16,11 +27,14 @@ const builder = imageUrlBuilder(client)
 export function urlFor(source: SanityImage | SanityImage['asset']): string {
   if (!source) return ''
 
+  const activeBuilder = getBuilder()
+  if (!activeBuilder) return ''
+
   try {
     // Handle both image objects and asset references
     const imageSource = 'asset' in source ? source : { asset: source }
 
-    return builder.image(imageSource).auto('format').fit('max').url()
+    return activeBuilder.image(imageSource).auto('format').fit('max').url()
   } catch (error) {
     console.warn('Error generating Sanity image URL:', error)
     return ''
@@ -33,10 +47,13 @@ export function urlFor(source: SanityImage | SanityImage['asset']): string {
 export function urlForWidth(source: SanityImage | SanityImage['asset'], width: number): string {
   if (!source) return ''
 
+  const activeBuilder = getBuilder()
+  if (!activeBuilder) return ''
+
   try {
     const imageSource = 'asset' in source ? source : { asset: source }
 
-    return builder.image(imageSource).width(width).auto('format').fit('max').url()
+    return activeBuilder.image(imageSource).width(width).auto('format').fit('max').url()
   } catch (error) {
     console.warn('Error generating Sanity image URL with width:', error)
     return ''
@@ -53,10 +70,13 @@ export function urlForSocial(
 ): string {
   if (!source) return ''
 
+  const activeBuilder = getBuilder()
+  if (!activeBuilder) return ''
+
   try {
     const imageSource = 'asset' in source ? source : { asset: source }
 
-    return builder
+    return activeBuilder
       .image(imageSource)
       .width(width)
       .height(height)
@@ -77,10 +97,20 @@ export function urlForSocial(
 export function urlForBlur(source: SanityImage | SanityImage['asset']): string {
   if (!source) return ''
 
+  const activeBuilder = getBuilder()
+  if (!activeBuilder) return ''
+
   try {
     const imageSource = 'asset' in source ? source : { asset: source }
 
-    return builder.image(imageSource).width(10).height(10).quality(20).auto('format').blur(3).url()
+    return activeBuilder
+      .image(imageSource)
+      .width(10)
+      .height(10)
+      .quality(20)
+      .auto('format')
+      .blur(3)
+      .url()
   } catch (error) {
     console.warn('Error generating Sanity blur placeholder URL:', error)
     return ''
