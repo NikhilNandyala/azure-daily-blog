@@ -23,7 +23,7 @@ export const tagType = defineType({
         maxLength: 96,
       },
       validation: (rule) =>
-        rule.required().custom((value: { current?: string }) => {
+        rule.required().custom((value) => {
           if (!value || !value.current) return 'Slug is required'
           if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.current)) {
             return 'Slug must be lowercase with hyphens only'
