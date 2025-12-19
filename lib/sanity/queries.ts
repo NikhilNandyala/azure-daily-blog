@@ -267,6 +267,9 @@ export async function getPostsByTagCount(tagSlug: string): Promise<number> {
     count(*[_type == "post" && status == "published" && $tagSlug in tags[]->.slug.current])
   `
 
+  const client = getClientOrNull()
+  if (!client) return 0
+
   try {
     const count = await client.fetch<number>(query, { tagSlug })
     return count || 0
@@ -294,6 +297,9 @@ export async function getSiteSettings(): Promise<SiteSettings | null> {
     }
   `
 
+  const client = getClientOrNull()
+  if (!client) return null
+
   try {
     const settings = await client.fetch<SiteSettings>(query)
     return settings || null
@@ -319,6 +325,9 @@ export async function getAuthorById(authorId: string): Promise<Author | null> {
       }
     }
   `
+
+  const client = getClientOrNull()
+  if (!client) return null
 
   try {
     const author = await client.fetch<Author>(query, { authorId })
