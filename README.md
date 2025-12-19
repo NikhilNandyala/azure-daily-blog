@@ -1,111 +1,492 @@
-![tailwind-nextjs-banner](/public/static/images/twitter-card.png)
+# Azure Daily Blog
 
-# Tailwind Nextjs Starter Blog
+A modern, feature-rich technical blog focused on Azure, networking, and cloud infrastructure. Built with Next.js 15, Sanity CMS, and Tailwind CSS.
 
-[![GitHub Repo stars](https://img.shields.io/github/stars/timlrx/tailwind-nextjs-starter-blog?style=social)](https://GitHub.com/timlrx/tailwind-nextjs-starter-blog/stargazers/)
-[![GitHub forks](https://img.shields.io/github/forks/timlrx/tailwind-nextjs-starter-blog?style=social)](https://github.com/timlrx/tailwind-nextjs-starter-blog/forks)
-[![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2Ftimlrxx)](https://x.com/timlrxx)
-[![Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&link=https://github.com/sponsors/timlrx)](https://github.com/sponsors/timlrx)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/timlrx/tailwind-nextjs-starter-blog)
+## 🚀 Features
 
-This is a [Next.js](https://nextjs.org/), [Tailwind CSS](https://tailwindcss.com/) blogging starter template. Version 2 is based on Next App directory with [React Server Component](https://nextjs.org/docs/getting-started/react-essentials#server-components) and uses [Contentlayer](https://www.contentlayer.dev/) to manage markdown content.
+- **Sanity CMS Integration** - Headless CMS for easy content management
+- **Draft Preview Mode** - Preview draft posts before publishing
+- **Authentication** - Google OAuth and credentials-based auth via NextAuth.js
+- **Members-Only Content** - Restrict posts to authenticated users
+- **Embedded Sanity Studio** - Manage content directly at `/studio`
+- **SEO Optimized** - Dynamic metadata and JSON-LD schemas
+- **Responsive Design** - Mobile-first design with Tailwind CSS
+- **Dark Mode** - Built-in dark mode support
+- **Tag System** - Organize posts with tags and categories
+- **Search Functionality** - Fast client-side search
+- **RSS Feed** - Auto-generated RSS feed
+- **Analytics Ready** - Ready for Google Analytics integration
 
-Probably the most feature-rich Next.js markdown blogging template out there. Easily configurable and customizable. Perfect as a replacement to existing Jekyll and Hugo individual blogs.
+## 📋 Table of Contents
 
-Check out the documentation below to get started.
+- [Tech Stack](#-tech-stack)
+- [Getting Started](#-getting-started)
+- [Environment Variables](#-environment-variables)
+- [Content Management](#-content-management)
+- [Adding Blog Posts](#-adding-blog-posts)
+- [Creating New Pages](#-creating-new-pages)
+- [Customization](#-customization)
+- [Deployment](#-deployment)
+- [Project Structure](#-project-structure)
 
-Facing issues? Check the [FAQ page](https://github.com/timlrx/tailwind-nextjs-starter-blog/wiki) and do a search on past issues. Feel free to open a new issue if none has been posted previously.
+## 🛠 Tech Stack
 
-Feature request? Check the past discussions to see if it has been brought up previously. Otherwise, feel free to start a new discussion thread. All ideas are welcomed!
+- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **CMS**: [Sanity v4](https://www.sanity.io/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Authentication**: [NextAuth.js](https://next-auth.js.org/)
+- **Language**: TypeScript
+- **Deployment**: Vercel-ready
 
-## Variations
+## 🚀 Getting Started
 
-**Note**: These are community contributed forks using different frameworks or with significant changes to the codebase - not officially supported.
+### Prerequisites
 
-Astro alternative - [Tailwind Astro Template](https://github.com/wanoo21/tailwind-astro-starting-blog).
+- Node.js 18+ and npm
+- A Sanity account ([sign up free](https://www.sanity.io/))
+- Google OAuth credentials (for authentication)
 
-Remix-run alternative - [Tailwind Remix-run Starter Blog Template](https://github.com/SangeetAgarwal/tailwind-remix-run-mdxjs-typescript-starter-blog).
+### Installation
 
-Internationalization support - [Template with i18n](https://tailwind-nextjs-starter-blog-i18n.vercel.app/) and [source code](https://github.com/PxlSyl/tailwind-nextjs-starter-blog-i18n/tree/main).
+1. **Clone the repository**
 
-## Examples V2
+   ```bash
+   git clone https://github.com/NikhilNandyala/azure-daily-blog.git
+   cd azure-daily-blog
+   ```
 
-- [Demo Blog](https://tailwind-nextjs-starter-blog.vercel.app/) - this repo
-- [My personal blog](https://www.timlrx.com) - modified to auto-generate blog posts with dates
-- [Karhdo's Blog](https://karhdo.dev) - Karhdo's Blog - Karhdo's Coding Adventure ([source code](https://github.com/Karhdo/karhdo.dev))
-- [SOTO's Blog](https://www.atksoto.com/) - A more personalized personal website upgraded from V1 ([source code](https://github.com/acsoto/soto-blog-nextjs))
-- [Prabhu's Blog](https://v1-prabhukirankonda.vercel.app) - Prabhu's Personal website with blog ([source code](https://github.com/prabhukiran8790/prabhukirankonda))
-- [Rabby Hasan's Blog](https://blog.rabbyhasan.com.bd/) - Rabby Hasan's personal blog about full stack development with cloud ([source code](https://github.com/rabbyalone/myblog))
-- [enscribe.dev](https://enscribe.dev) - enscribe's personal blog; cybersecurity shenanigans, frontend webdev, etc. ([source code](https://github.com/jktrn/enscribe.dev))
-- [dalelarroder.com](https://dalelarroder.com) - Dale Larroder's personal website upgraded from V1 ([source code](https://github.com/dlarroder/dalelarroder))
-- [thetalhatahir.com](https://www.thetalhatahir.com) - Talha Tahir's personal blog. Added article thumbnails, linkedIn card, Beautiful hero content, technology emoticons.
-- [homing.so](https://homing.so) - Homing's personal blog about the stuff he's learning ([source code](https://github.com/hominsu/blog))
-- [zS1m's Blog](https://contrails.space) - zS1m's personal blog for recording and sharing daily learning technical content ([source code](https://github.com/zS1m/nextjs-contrails))
-- [dariuszwozniak.net](https://dariuszwozniak.net/) - Software development blog ([source code](https://github.com/dariusz-wozniak/dariuszwozniak.net-v2))
-- [dreams.plus](https://dreams.plus) - Blog site for some thoughts and records for life and technology.
-- [francisaguilar.co blog](https://francisaguilar.co) - Francis Aguilar's personal blog that talks about tech, fitness, and personal development.
-- [Min71 Dev Blog](https://min71.dev) - Personal blog about Blockchain, Development and etc. ([source code](https://github.com/mingi3442/blog))
-- [Bryce Yu's Blog](https://earayu.github.io/) - Bryce Yu's personal Blog about distributed system, database, and web development. ([source code](https://github.com/earayu/earayu.github.io))
-- [Remote Startup Senpai Anime Series Website](https://remote-startup-senpai.com) - Landing page for the anime series Remote Startup Senpai.
-- [Secret Base](https://www.jachsu.com/) - Jac Hsu's personal Blog.talks about tech, thought, and life in general.
-- [Zsebinformatikus](https://www.zsebinformatikus.hu/) - The information superhighway guide blog.
-- [Anton Morgunov's Blog](https://blog.ischemist.com/) - talking about science without oversimplifications or why theoretical and computational chemistry is cool.
-- [Hans Blog](https://www.hansking.cn/) - Hans' personal blog, front-end technology, gallery and travel diary 中文. ([source code](https://github.com/hansking98/hans-nextjs-blog))
-- [London Tech Talk](https://london-tech-talk.com/) - A podcast exploring technology trends and expatriate living experiences. - 日本語
-- [CRUD Flow Blog](http://blog.ndamulelo.co.za/) - A technical blog about AI, Cloud Engineering, Data Science and Personal development
-- [Trillium's Blog](https://trilliumsmith.com/) - Modified to render resume pdf on `/resume` page. ([source code](https://github.com/trillium/trilliumsmith.com))
-- [Wujie's Blog: 旅行者计划](https://www.wujieli.com/) - Wujie's personal digital garden ([source code](https://github.com/wujieli0207/wujie-blog-next))
-- [Xiaodong's Blog](https://blog.linxiaodong.com) - Xiaodong's personal blog about front-end technology, and life. 「中文」([source code](https://github.com/buxuku/buxuku.github.io))
-- [Azurtelier.com](https://www.azurtelier.com/) - Amos's personal website for tech, music, AI illustrations, etc. [English/中文] ([Source code](https://github.com/AmosChenZixuan/Azurtelier.com))
-- [JoshHaines.com](https://www.JoshHaines.com/) - Personal website for Josh Haines. ([source code](https://github.com/jdhaines/joshhaines))
-- [Jigu's Blog](https://animeirl.top) - Jigu's personal blog about tech, crypto, golang, and life. 「中文」
-- [andrewsam.xyz](https://www.andrewsam.xyz/) - Andrew's Personal website using ShadCN, Prisma, MongoDB, Auth.js, Resume Page, Custom Experience timeline and technologies components. ([source code](https://github.com/andrew-sameh/andrewsam.xyz))
-- [Rulli Damara Putra's Portfolio](https://www.damaraputra.my.id/) - Rully's personal blog and portfolio.
-- [blog.taoluyuan.com 套路猿](https://blog.taoluyuan.com) - A personal tech blog that supports multi-theme switching. 「中英」
-- [LyricsDecode.com](https://lyricsdecode.com) - A song lyrics website offering original lyrics, Romanisation, and English translations with customisable viewing options.
-- [bmacharia.com](https://bmacharia.com/) - Benson Macharia's technical blog about Cybersecurity and IT Risk Management.
-- [armujahid.me](https://armujahid.me/) - Abdul Rauf's personal blog about tech and random stuff.
-- [leohuynh.dev](https://www.leohuynh.dev/) - 🇻🇳 Leo's dev blog – stories, insights, and ideas. Add `/snippets`, `/books` pages, add `ProfileCard`, `CareerTimeline` components and many more. ([source](https://github.com/hta218/leohuynh.dev))
-- [OpenSats Blog](https://opensats.org/blog) - A 501(c)(3) public charity which aims to sustainably fund free and open-source projects. ([source code](https://github.com/OpenSats/website))
-- [Schedles Blog](https://schedles.com/blog) - Social media scheduling tips, strategies, and product updates for content creators. ([Project Link](https://schedles.com))
-- [YawDev Blog](https://yawdev.org/blog) - IT-Agency / Software Development. Blog about tech and business ([Project Link](https://yawdev.org))
-- [Engineering Notes](https://www.jonvet.com) - Jonas Vetterle Personal Website & Blog. I'm writing articles about software engineering that interest me, including AI and Quantum Computing
-- [Screenager.dev](https://screenager.vercel.app) - Personal Website as Portfolio & Blog. Documenting my learning journey and some guides.
-- [kezhenxu94's blog](https://kezhenxu94.me) - Blogging about dev, tips & tricks, tutorials and more.
-- [Parminder's blog](https://singhspeak.com) - Thoughts on software development, life and more.
-- [wheelcircuit.com](https://wheelcircuit.com) - Automotive YouTube News & Videos blog, updated daily.
-- [taitrd.com](https://taitrd.com) - Tai's personal dev blog, technologies and coding activity with Dynamodb practice ([source code](https://github.com/taitrd/taitrd)).
-- [Shelton's Blog](https://www.sheltonma.top) - Sharing insights on TypeScript full-stack development (Next.js, React, Hono, Supabase), web crawlers, and other cutting-edge technologies.
-- [Culture DevOps](https://culturedevops.com/en) - Technical blog on DevOps practices and tools ([source code](https://github.com/CultureDevOps/blog)).
-- [InnovateWire Blog](https://innovatewire.com) - A tech blog about software automation and automation tools ([Project Link](https://innovatewire.com))
-- [MichaelScheiwiller.com](https://www.michaelscheiwiller.com/) - Mix of software and data engineering blog as well as personal notes and updates
-- [Wahyu Ikbal Personal Website](https://www.wahyuikbal.web.id) - Personal website with blog and ai feature, share about Technology literacy ([source code](https://github.com/wahyudesu/Personal-Website-Next-js-Obsidian-Ai-))
-- [ByteGeometry Blog](https://bytegeometry.com/blog) - Software development blog about tech trends and business growth. AI and web-apps development ([Project Link](https://bytegeometry.com))
-- [Farhad's Blog](https://www.farhad.my) - Farhad's personal website sharing tech news and insights on emerging technologies, with a focus on AI and Data Science ([Project Link](https://farhad.my))
-- [Utanzu Cybersecurity](https://utanzu.com/) – A thriving community where mentorship and expert training help cybersecurity professionals unlock their full potential and advance their careers.
-- [trungtmnguyen.com](https://www.trungtmnguyen.com/) - 🇻🇳 Trung's personal and technical blogs – some idea about me, tips, ideas and learned. Add some custom components, like: UnderlineHoverLink, Timeline, neon-border styles and will have more in the future. ([source](https://github.com/trungntm/trungtmnguyen.com))
-- [Ryan Fitton's Blog](https://ryanfitton.co.uk/) – A custom theme version with 'Portfolio' section. Used as a personal Blog/Portfolio for development projects. ([source code](https://github.com/ryanfitton/ryanfitton-nextjs-2024))
-- [ktovoz.com](https://www.ktovoz.com/) - Kto's personal blog, sharing life, technology. Added article categories and article directory navigation 「中文」
+2. **Install dependencies**
 
-Using the template? Feel free to create a PR and add your blog to this list.
+   ```bash
+   npm install
+   ```
 
-## Examples V1
+3. **Set up Sanity**
 
-[v1-blogs-showcase.webm](https://github.com/timlrx/tailwind-nextjs-starter-blog/assets/28362229/2124c81f-b99d-4431-839c-347e01a2616c)
+   ```bash
+   npm install -g @sanity/cli
+   sanity init
+   ```
 
-Thanks to the community of users and contributors to the template! We are no longer accepting new blog listings over here. If you have updated from version 1 to version 2, feel free to remove your blog from this list and add it to the one above.
+   - Follow the prompts to create a new project
+   - Note your Project ID and Dataset name
 
-- [Aloisdg's cookbook](https://tambouille.vercel.app/) - with pictures and recipes!
-- [GautierArcin's demo with next translate](https://tailwind-nextjs-starter-blog-seven.vercel.app/) - includes translation of mdx posts, [source code](https://github.com/GautierArcin/tailwind-nextjs-starter-blog/tree/demo/next-translate)
-- [David Levai's digital garden](https://davidlevai.com/) - customized design and added email subscriptions
-- [thvu.dev](https://thvu.dev) - Added `mdx-embed`, view count, reading minutes and more.
-- [irvin.dev](https://www.irvin.dev/) - Irvin Lin's personal site. Added YouTube embedding.
-- [KirillSo.com](https://www.kirillso.com/) - Personal blog & website.
-- [slightlysharpe.com](https://slightlysharpe.com) - [Tincre's](https://tincre.com) main company blog
-- [blog.b00st.com](https://blog.b00st.com) - [b00st.com's](https://b00st.com) main music promotion blog
-- [astrosaurus.me](https://astrosaurus.me/) - Ephraim Atta-Duncan's Personal Blog
-- [dhanrajsp.me](https://dhanrajsp.me/) - Dhanraj's personal site and blog.
+4. **Configure environment variables**
+
+   Copy `.env.example` to `.env.local`:
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Fill in your environment variables (see [Environment Variables](#-environment-variables))
+
+5. **Run the development server**
+
+   ```bash
+   npm run dev
+   ```
+
+6. **Access the application**
+   - Website: `http://localhost:3000`
+   - Sanity Studio: `http://localhost:3000/studio`
+
+## 🔐 Environment Variables
+
+Create a `.env.local` file with the following variables:
+
+```bash
+# Sanity Configuration
+NEXT_PUBLIC_SANITY_PROJECT_ID=your_project_id
+NEXT_PUBLIC_SANITY_DATASET=production
+SANITY_API_TOKEN=your_write_token          # For Studio write operations
+SANITY_DRAFT_TOKEN=your_read_token         # For draft preview (optional for production)
+
+# Draft Preview (optional - for previewing draft posts)
+SANITY_DRAFT_SECRET_TOKEN=your_secret_token_for_preview
+
+# NextAuth Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_random_secret_string
+
+# Google OAuth (for authentication)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Email Provider (for credentials auth)
+EMAIL_SERVER=smtp://user:pass@smtp.example.com:587
+EMAIL_FROM=noreply@example.com
+```
+
+### Getting Sanity Tokens
+
+1. Go to [sanity.io/manage](https://www.sanity.io/manage)
+2. Select your project
+3. Go to **API** → **Tokens**
+4. Create tokens:
+   - **Write token**: Editor role (for Studio)
+   - **Read token**: Viewer role (for draft preview)
+
+### Getting Google OAuth Credentials
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing
+3. Enable Google+ API
+4. Create OAuth 2.0 credentials
+5. Add authorized redirect URIs:
+   - `http://localhost:3000/api/auth/callback/google` (development)
+   - `https://yourdomain.com/api/auth/callback/google` (production)
+
+## 📝 Content Management
+
+### Accessing Sanity Studio
+
+1. **Navigate to Studio**
+   - Local: `http://localhost:3000/studio`
+   - Production: `https://yourdomain.com/studio`
+
+2. **Sign in** with your Sanity credentials
+
+3. **Content Types Available**:
+   - **Posts**: Blog articles
+   - **Authors**: Author profiles
+   - **Tags**: Content categories
+   - **Site Settings**: Global site configuration
+
+## ✍️ Adding Blog Posts
+
+### Method 1: Using Sanity Studio (Recommended)
+
+1. **Go to Sanity Studio** (`/studio`)
+
+2. **Click "Post" → "Create new"**
+
+3. **Fill in the required fields**:
+   - **Title**: Your post title
+   - **Slug**: Auto-generated (or customize)
+   - **Excerpt**: Brief summary for listings
+   - **Author**: Select from authors
+   - **Tags**: Choose relevant tags
+   - **Cover Image**: Upload featured image
+   - **Body**: Write your content using rich text editor
+   - **Status**: Choose "draft" or "published"
+   - **Published Date**: Set publication date
+   - **Members Only**: Toggle for restricted content
+
+4. **Additional Options**:
+   - **SEO Title**: Custom meta title
+   - **SEO Description**: Meta description
+   - **Canonical URL**: If republishing content
+   - **Featured**: Mark as featured post
+
+5. **Save and Publish**
+   - Click "Publish" to make live
+   - Or save as draft for later
+
+### Method 2: Using Draft Preview
+
+1. **Create a draft post** in Sanity Studio (set status to "draft")
+
+2. **Preview the draft**:
+
+   ```
+   http://localhost:3000/api/draft/enable?secret=YOUR_SECRET&slug=/blog/your-post-slug
+   ```
+
+3. **View your draft** at `http://localhost:3000/blog/your-post-slug`
+
+4. **Exit draft mode**:
+   ```
+   http://localhost:3000/api/draft/disable
+   ```
+
+### Content Tips
+
+- **Images**: Use Sanity's image CDN for optimized delivery
+- **Rich Text**: Supports headings, lists, links, code blocks, and images
+- **SEO**: Always fill in SEO fields for better search rankings
+- **Tags**: Use consistent tag naming for better organization
+- **Excerpts**: Keep under 160 characters for optimal display
+
+## 🎨 Creating New Pages
+
+### Static Pages
+
+1. **Create a new file** in `app/your-page/page.tsx`:
+
+```typescript
+import {Metadata} from 'next'
+import PageContainer from '@/components/PageContainer'
+import PageTitle from '@/components/PageTitle'
+
+export const metadata: Metadata = {
+  title: 'Your Page Title',
+  description: 'Your page description',
+}
+
+export default function YourPage() {
+  return (
+    <PageContainer>
+      <PageTitle>Your Page Title</PageTitle>
+      <div className="prose dark:prose-invert max-w-none">
+        <p>Your content here...</p>
+      </div>
+    </PageContainer>
+  )
+}
+```
+
+2. **Add to navigation** in `data/headerNavLinks.ts`:
+
+```typescript
+const headerNavLinks = [
+  { href: '/', title: 'Home' },
+  { href: '/blog', title: 'Blog' },
+  { href: '/your-page', title: 'Your Page' }, // Add this
+  { href: '/about', title: 'About' },
+]
+```
+
+### Dynamic Pages with Sanity
+
+1. **Create a schema** in `sanity/schemaTypes/yourType.ts`
+
+2. **Add to schema index** in `sanity/schemaTypes/index.ts`
+
+3. **Create queries** in `lib/sanity/queries.ts`
+
+4. **Create the page** in `app/your-page/[slug]/page.tsx`:
+
+```typescript
+import {notFound} from 'next/navigation'
+import {client} from '@/lib/sanity/client'
+
+export async function generateStaticParams() {
+  const items = await client.fetch('*[_type == "yourType"]{ slug }')
+  return items.map((item) => ({ slug: item.slug.current }))
+}
+
+export default async function YourPage({params}: {params: {slug: string}}) {
+  const item = await client.fetch(
+    '*[_type == "yourType" && slug.current == $slug][0]',
+    {slug: params.slug}
+  )
+
+  if (!item) notFound()
+
+  return <div>{/* Render your content */}</div>
+}
+```
+
+## 🎨 Customization
+
+### Site Metadata
+
+Edit `data/siteMetadata.js`:
+
+```javascript
+const siteMetadata = {
+  title: 'Your Blog Title',
+  author: 'Your Name',
+  headerTitle: 'Your Header',
+  description: 'Your blog description',
+  language: 'en-us',
+  theme: 'system',
+  siteUrl: 'https://yourdomain.com',
+  siteRepo: 'https://github.com/yourusername/yourrepo',
+  siteLogo: '/static/images/logo.png',
+  socialBanner: '/static/images/twitter-card.png',
+  email: 'your@email.com',
+  github: 'https://github.com/yourusername',
+  twitter: 'https://twitter.com/yourusername',
+  linkedin: 'https://www.linkedin.com/in/yourusername',
+}
+```
+
+### Styling
+
+- **Colors**: Edit Tailwind config in `tailwind.config.js`
+- **Fonts**: Update in `app/layout.tsx`
+- **Components**: Modify components in `components/` directory
+- **CSS**: Global styles in `css/tailwind.css`
+
+### Sanity Studio
+
+Customize the Studio in `sanity.config.ts`:
+
+```typescript
+export default defineConfig({
+  // Your customizations
+  title: 'Your Blog Studio',
+  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET,
+})
+```
+
+## 🚀 Deployment
+
+### Deploy to Vercel
+
+1. **Push to GitHub**
+
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
+
+2. **Import to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "Import Project"
+   - Select your repository
+   - Add environment variables
+   - Deploy!
+
+3. **Configure Environment Variables** in Vercel:
+   - Go to Project Settings → Environment Variables
+   - Add all variables from your `.env.local`
+   - Redeploy if needed
+
+4. **Update OAuth Redirects**
+   - Add production URL to Google OAuth allowed redirects
+   - Update `NEXTAUTH_URL` in environment variables
+
+### Deploy Sanity Studio
+
+The Studio is automatically deployed with your Next.js app at `/studio`. No separate deployment needed!
+
+### Post-Deployment
+
+1. **Test all features**:
+   - Authentication
+   - Studio access
+   - Draft preview
+   - Blog posts display
+
+2. **Configure CORS** in Sanity:
+   - Go to sanity.io/manage
+   - Add your domain to allowed origins
+
+3. **Set up webhooks** (optional):
+   - Configure revalidation webhooks in Sanity
+   - Trigger rebuilds on content changes
+
+## 📁 Project Structure
+
+```
+├── app/                      # Next.js app directory
+│   ├── blog/                # Blog pages
+│   ├── studio/              # Sanity Studio
+│   ├── api/                 # API routes
+│   │   ├── auth/           # NextAuth.js
+│   │   └── draft/          # Draft preview
+│   ├── login/              # Login page
+│   └── account/            # User account
+├── components/              # React components
+├── lib/                    # Utilities
+│   ├── sanity/            # Sanity queries & helpers
+│   └── auth.ts            # NextAuth config
+├── sanity/                 # Sanity Studio config
+│   └── schemaTypes/       # Content schemas
+├── data/                   # Static data
+├── public/                 # Static assets
+└── styles/                 # Global styles
+```
+
+## 🔧 Common Tasks
+
+### Adding a New Tag
+
+1. Go to Studio → Tags
+2. Click "Create new"
+3. Enter title (slug auto-generates)
+4. Publish
+
+### Updating Site Settings
+
+1. Go to Studio → Site Settings
+2. Update fields:
+   - Site title
+   - Site description
+   - SEO defaults
+   - OG image
+3. Publish changes
+
+### Restricting Content
+
+1. Edit post in Studio
+2. Toggle "Members Only" to ON
+3. Publish
+4. Users must sign in to view
+
+### Managing Authors
+
+1. Go to Studio → Authors
+2. Add/edit author profiles
+3. Assign to posts
+
+## 📚 Additional Documentation
+
+For more detailed guides, check these files:
+
+- `SANITY_QUICKSTART.md` - Quick setup guide
+- `SANITY_SETUP.md` - Detailed Sanity configuration
+- `DRAFT_PREVIEW_SETUP.md` - Draft preview system
+- `SANITY_STUDIO_GUIDE.md` - Studio customization
+- `SANITY_SCHEMAS.md` - Content schema details
+
+## 🐛 Troubleshooting
+
+### Build Errors
+
+**Error**: `Missing SANITY_DRAFT_TOKEN`
+
+- **Solution**: Make `SANITY_DRAFT_TOKEN` optional or add it to `.env.local`
+
+**Error**: TypeScript errors in Sanity schemas
+
+- **Solution**: Check schema types match the TypeScript interfaces
+
+### Studio Issues
+
+**Problem**: Can't access Studio
+
+- **Solution**: Check `SANITY_API_TOKEN` is set correctly
+
+**Problem**: Changes not appearing
+
+- **Solution**: Check CORS settings in Sanity dashboard
+
+### Authentication Issues
+
+**Problem**: Google OAuth not working
+
+- **Solution**: Verify redirect URIs in Google Console match exactly
+
+**Problem**: Session not persisting
+
+- **Solution**: Check `NEXTAUTH_SECRET` is set and consistent
+
+## 📄 License
+
+MIT License - feel free to use this project for your own blog!
+
+## 🙏 Acknowledgments
+
+Built with:
+
+- [Next.js](https://nextjs.org/)
+- [Sanity](https://www.sanity.io/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [NextAuth.js](https://next-auth.js.org/)
+- Based on [Tailwind Next.js Starter Blog](https://github.com/timlrx/tailwind-nextjs-starter-blog)
+
+---
+
+**Questions or issues?** Open an issue on [GitHub](https://github.com/NikhilNandyala/azure-daily-blog/issues)
+
 - [blog.r00ks.io](https://blog.r00ks.io/) - Austin Rooks's personal blog ([source code](https://github.com/Austionian/blog.r00ks)).
 - [honghong.me](https://honghong.me) - Tszhong's personal website ([source code](https://github.com/tszhong0411/home))
 - [marceloformentao.dev](https://marceloformentao.dev) - Marcelo Formentão personal website ([source code](https://github.com/marceloavf/marceloformentao.dev)).
@@ -119,226 +500,3 @@ Thanks to the community of users and contributors to the template! We are no lon
 - [musing.vercel.app](https://musing.vercel.app/) - Parth Desai's personal blog ([source code](https://github.com/pycoder2000/blog))
 - [onyourmental.com](https://www.onyourmental.com/) - [Curtis Warcup's](https://github.com/Cwarcup) website for the On Your Mental Podcast ([source code](https://github.com/Cwarcup/on-your-mental))
 - [cwarcup.com](https://www.cwarcup.com/) - Curtis Warcup's personal website and blog ([source code](https://github.com/Cwarcup/personal-blog)).
-- [jmalvarez.dev](https://www.jmalvarez.dev/) - José Miguel Álvarez's personal blog ([source code](https://github.com/josemiguel-alvarez/nextjs-blog))
-- [justingosses.com](https://justingosses.com/) - Justin Gosses's personal website and blog ([source code](https://github.com/JustinGOSSES/justingosses-website))
-- [raphaelchelly.com](https://www.raphaelchelly.com/) - Raphaël Chelly's personal website and blog ([source code](https://github.com/raphaelchelly/raph_www))
-- [kaveh.page](https://kaveh.page) - Kaveh Tehrani's personal blog. Added tags directory, profile card, time-to-read on posts directory, etc.
-- [drakerossman.com](https://drakerossman.com/) - Drake Rossman's blog about NixOS, Rust, Software Architecture and Engineering Management, as well as general musings.
-- [meamenu.com](https://www.meamenu.com) - Landing page and product blog starting from this template. It also uses [framer-motion](https://www.framer.com/motion) for animations, custom layout templates, [waline](https://waline.js.org/en/) for blog comments and [primereact](https://primereact.org/) forms [Ita]
-- [giovanni.orciuolo.it](https://giovanni.orciuolo.it) - Giovanni Orciuolo's personal website, blog and everything nerd.
-
-## Motivation
-
-I wanted to port my existing blog to Nextjs and Tailwind CSS but there was no easy out of the box template to use so I decided to create one. Design is adapted from [Tailwindlabs blog](https://github.com/tailwindlabs/blog.tailwindcss.com).
-
-I wanted it to be nearly as feature-rich as popular blogging templates like [beautiful-jekyll](https://github.com/daattali/beautiful-jekyll) and [Hugo Academic](https://github.com/wowchemy/wowchemy-hugo-modules) but with the best of React's ecosystem and current web development's best practices.
-
-## Features
-
-- Next.js with Typescript
-- [Contentlayer](https://www.contentlayer.dev/) to manage content logic
-- Easy styling customization with [Tailwind 3.0](https://tailwindcss.com/blog/tailwindcss-v3) and primary color attribute
-- [MDX - write JSX in markdown documents!](https://mdxjs.com/)
-- Near perfect lighthouse score - [Lighthouse report](https://www.webpagetest.org/result/230805_BiDcBQ_4H7)
-- Lightweight, 85kB first load JS
-- Mobile-friendly view
-- Light and dark theme
-- Font optimization with [next/font](https://nextjs.org/docs/app/api-reference/components/font)
-- Integration with [pliny](https://github.com/timlrx/pliny) that provides:
-  - Multiple analytics options including [Umami](https://umami.is/), [Plausible](https://plausible.io/), [Simple Analytics](https://simpleanalytics.com/), Posthog and Google Analytics
-  - Comments via [Giscus](https://github.com/laymonage/giscus), [Utterances](https://github.com/utterance/utterances) or Disqus
-  - Newsletter API and component with support for Mailchimp, Buttondown, Convertkit, Klaviyo, Revue, Emailoctopus and Beehiiv
-  - Command palette search with [Kbar](https://github.com/timc1/kbar) or Algolia
-- Server-side syntax highlighting with line numbers and line highlighting via [rehype-prism-plus](https://github.com/timlrx/rehype-prism-plus)
-- Math display supported via [KaTeX](https://katex.org/)
-- Citation and bibliography support via [rehype-citation](https://github.com/timlrx/rehype-citation)
-- [Github alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts) via [remark-github-blockquote-alert](https://github.com/jaywcjlove/remark-github-blockquote-alert)
-- Automatic image optimization via [next/image](https://nextjs.org/docs/basic-features/image-optimization)
-- Support for tags - each unique tag will be its own page
-- Support for multiple authors
-- 3 different blog layouts
-- 2 different blog listing layouts
-- Support for nested routing of blog posts
-- Projects page
-- Preconfigured security headers
-- SEO friendly with RSS feed, sitemaps and more!
-
-## Sample posts
-
-- [A markdown guide](https://tailwind-nextjs-starter-blog.vercel.app/blog/github-markdown-guide)
-- [Learn more about images in Next.js](https://tailwind-nextjs-starter-blog.vercel.app/blog/guide-to-using-images-in-nextjs)
-- [A tour of math typesetting](https://tailwind-nextjs-starter-blog.vercel.app/blog/deriving-ols-estimator)
-- [Simple MDX image grid](https://tailwind-nextjs-starter-blog.vercel.app/blog/pictures-of-canada)
-- [Example of long prose](https://tailwind-nextjs-starter-blog.vercel.app/blog/the-time-machine)
-- [Example of Nested Route Post](https://tailwind-nextjs-starter-blog.vercel.app/blog/nested-route/introducing-multi-part-posts-with-nested-routing)
-
-## Quick Start Guide
-
-1. Clone the repo
-
-```bash
-npx degit 'timlrx/tailwind-nextjs-starter-blog'
-```
-
-2. Personalize `siteMetadata.js` (site related information)
-3. Modify the content security policy in `next.config.js` if you want to use
-   other analytics provider or a commenting solution other than giscus.
-4. Personalize `authors/default.md` (main author)
-5. Modify `projectsData.ts`
-6. Modify `headerNavLinks.ts` to customize navigation links
-7. Add blog posts
-8. Deploy on Vercel
-
-## Installation
-
-```bash
-yarn
-```
-
-Please note, that if you are using Windows, you may need to run:
-
-```bash
-$env:PWD = $(Get-Location).Path
-```
-
-## Development
-
-First, run the development server:
-
-```bash
-yarn dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-Edit the layout in `app` or content in `data`. With live reloading, the pages auto-updates as you edit them.
-
-## Extend / Customize
-
-`data/siteMetadata.js` - contains most of the site related information which should be modified for a user's need.
-
-`data/authors/default.md` - default author information (required). Additional authors can be added as files in `data/authors`.
-
-`data/projectsData.js` - data used to generate styled card on the projects page.
-
-`data/headerNavLinks.js` - navigation links.
-
-`data/logo.svg` - replace with your own logo.
-
-`data/blog` - replace with your own blog posts.
-
-`public/static` - store assets such as images and favicons.
-
-`tailwind.config.js` and `css/tailwind.css` - tailwind configuration and stylesheet which can be modified to change the overall look and feel of the site.
-
-`css/prism.css` - controls the styles associated with the code blocks. Feel free to customize it and use your preferred prismjs theme e.g. [prism themes](https://github.com/PrismJS/prism-themes).
-
-`contentlayer.config.ts` - configuration for Contentlayer, including definition of content sources and MDX plugins used. See [Contentlayer documentation](https://www.contentlayer.dev/docs/getting-started) for more information.
-
-`components/MDXComponents.js` - pass your own JSX code or React component by specifying it over here. You can then use them directly in the `.mdx` or `.md` file. By default, a custom link, `next/image` component, table of contents component and Newsletter form are passed down. Note that the components should be default exported to avoid [existing issues with Next.js](https://github.com/vercel/next.js/issues/51593).
-
-`layouts` - main templates used in pages:
-
-- There are currently 3 post layouts available: `PostLayout`, `PostSimple` and `PostBanner`. `PostLayout` is the default 2 column layout with meta and author information. `PostSimple` is a simplified version of `PostLayout`, while `PostBanner` features a banner image.
-- There are 2 blog listing layouts: `ListLayout`, the layout used in version 1 of the template with a search bar and `ListLayoutWithTags`, currently used in version 2, which omits the search bar but includes a sidebar with information on the tags.
-
-`app` - pages to route to. Read the [Next.js documentation](https://nextjs.org/docs/app) for more information.
-
-`next.config.js` - configuration related to Next.js. You need to adapt the Content Security Policy if you want to load scripts, images etc. from other domains.
-
-## Post
-
-Content is modelled using [Contentlayer](https://www.contentlayer.dev/), which allows you to define your own content schema and use it to generate typed content objects. See [Contentlayer documentation](https://www.contentlayer.dev/docs/getting-started) for more information.
-
-### Frontmatter
-
-Frontmatter follows [Hugo's standards](https://gohugo.io/content-management/front-matter/).
-
-Please refer to `contentlayer.config.ts` for an up to date list of supported fields. The following fields are supported:
-
-```
-title (required)
-date (required)
-tags (optional)
-lastmod (optional)
-draft (optional)
-summary (optional)
-images (optional)
-authors (optional list which should correspond to the file names in `data/authors`. Uses `default` if none is specified)
-layout (optional list which should correspond to the file names in `data/layouts`)
-canonicalUrl (optional, canonical url for the post for SEO)
-```
-
-Here's an example of a post's frontmatter:
-
-```
----
-title: 'Introducing Tailwind Nexjs Starter Blog'
-date: '2021-01-12'
-lastmod: '2021-01-18'
-tags: ['next-js', 'tailwind', 'guide']
-draft: false
-summary: 'Looking for a performant, out of the box template, with all the best in web technology to support your blogging needs? Checkout the Tailwind Nextjs Starter Blog template.'
-images: ['/static/images/canada/mountains.jpg', '/static/images/canada/toronto.jpg']
-authors: ['default', 'sparrowhawk']
-layout: PostLayout
-canonicalUrl: https://tailwind-nextjs-starter-blog.vercel.app/blog/introducing-tailwind-nextjs-starter-blog
----
-```
-
-## Deploy
-
-### GitHub Pages
-
-A [`pages.yml`](.github/workflows/pages.yml) workflow is already provided. Simply select "GitHub Actions" in: `Settings > Pages > Build and deployment > Source`.
-
-### Vercel
-
-The easiest way to deploy the template is to deploy on [Vercel](https://vercel.com). Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-### Netlify
-
-[Netlify](https://www.netlify.com/)’s Next.js runtime configures enables key Next.js functionality on your website without the need for additional configurations. Netlify generates serverless functions that will handle Next.js functionalities such as server-side rendered (SSR) pages, incremental static regeneration (ISR), `next/images`, etc.
-
-See [Next.js on Netlify](https://docs.netlify.com/integrations/frameworks/next-js/overview/#next-js-runtime) for suggested configuration values and more details.
-
-### Static hosting services (GitHub Pages / S3 / Firebase etc.)
-
-Run:
-
-```sh
-$ EXPORT=1 UNOPTIMIZED=1 yarn build
-```
-
-Then, deploy the generated `out` folder or run `npx serve out` it locally.
-
-> [!IMPORTANT]
-> If deploying with a URL base path, like https://example.org/myblog you need an extra `BASE_PATH` shell-var to the build command:
->
-> ```sh
-> $ EXPORT=1 UNOPTIMIZED=1 BASE_PATH=/myblog yarn build
-> ```
->
-> => In your code, `${process.env.BASE_PATH || ''}/robots.txt` will print `"/myblog/robots.txt"` in the `out` build (or only `/robots.txt` if `yarn dev`, ie: on localhost:3000)
-
-> [!TIP]
-> Alternatively to `UNOPTIMIZED=1`, to continue using `next/image`, you can use an alternative image optimization provider such as Imgix, Cloudinary or Akamai. See [image optimization documentation](https://nextjs.org/docs/app/building-your-application/deploying/static-exports#image-optimization) for more details.
-
-Consider removing the following features that cannot be used in a static build:
-
-1. Comment out `headers()` from `next.config.js`.
-2. Remove `api` folder and components which call the server-side function such as the Newsletter component. Not technically required and the site will build successfully, but the APIs cannot be used as they are server-side functions.
-
-## Frequently Asked Questions
-
-- [How can I add a custom MDX component?](/faq/custom-mdx-component.md)
-- [How can I customize the `kbar` search?](/faq/customize-kbar-search.md)
-- [Deploy with docker](/faq/deploy-with-docker.md)
-
-## Support
-
-Using the template? Support this effort by giving a star on GitHub, sharing your own blog and giving a shoutout on Twitter or becoming a project [sponsor](https://github.com/sponsors/timlrx).
-
-## Licence
-
-[MIT](https://github.com/timlrx/tailwind-nextjs-starter-blog/blob/main/LICENSE) © [Timothy Lin](https://www.timlrx.com)
