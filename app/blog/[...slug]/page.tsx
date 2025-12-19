@@ -14,14 +14,19 @@ import { SanityPortableText } from '@/components/SanityPortableText'
 import { SanityCoverImage } from '@/components/SanityImage'
 import { buildPostMetadata, generateBlogPostSchema } from '@/lib/sanity/seo'
 import { DraftModeBanner } from '@/components/DraftModeBanner'
+import { sanityConfigured, getPublicClient } from '@/lib/sanity/client'
 
 // Revalidate every 24 hours
 export const revalidate = 86400
 
 export async function generateMetadata(props: { params: Promise<{ slug: string[] }> }) {
+  if (!sanityConfigured) return undefined
+
   const params = await props.params
   const slug = params.slug[0]
   const client = await getSanityClient()
+
+  if (!client) return undefined
 
   const post = await getPostBySlug(client, slug)
   const settings = await getSiteSettings(client)
@@ -32,9 +37,18 @@ export async function generateMetadata(props: { params: Promise<{ slug: string[]
 }
 
 export async function generateStaticParams() {
-  const { client } = await import('@/lib/sanity/client')
-  const slugs = await getAllPostSlugs(client)
-  return slugs.map((item) => ({ slug: [item.current] }))
+  if (!sanityConfigured) return []
+
+  const client = getPublicClient()
+  if (!client) return []
+
+  try {
+    const slugs = await getAllPostSlugs(client)
+    return slugs.map((item) => ({ slug: [item.current] }))
+  } catch (error) {
+    console.error('Error generating static params for blog posts:', error)
+    return []
+  }
 }
 
 export default async function PostPage(props: { params: Promise<{ slug: string[] }> }) {
@@ -42,6 +56,19 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
   const slug = params.slug[0]
   const draft = await draftMode()
   const client = await getSanityClient()
+
+  if (!client) {
+    return (
+      <SectionContainer>
+        <div className="space-y-4 py-24 text-center">
+          <h1 className="text-3xl font-bold">Sanity configuration missing</h1>
+          <p className="text-muted">
+            Set NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET to build blog pages.
+          </p>
+        </div>
+      </SectionContainer>
+    )
+  }
 
   const post = await getPostBySlug(client, slug)
   if (!post) notFound()

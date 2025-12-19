@@ -1,16 +1,17 @@
 import { draftMode } from 'next/headers'
-import { client } from './client'
-import { getDraftClient } from './draftClient'
+import { client, sanityConfigured } from './client'
+import { getDraftClient, draftConfigured } from './draftClient'
 
-/**
- * Get Sanity client based on draft mode
- * Returns draft client if draft mode is enabled, otherwise returns public client
- */
 export async function getSanityClient() {
+  if (!sanityConfigured) return null
+
   const draft = await draftMode()
 
   if (draft.isEnabled) {
-    return getDraftClient()
+    if (draftConfigured) {
+      const draftClient = getDraftClient()
+      if (draftClient) return draftClient
+    }
   }
 
   return client

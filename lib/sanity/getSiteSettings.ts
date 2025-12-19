@@ -8,6 +8,7 @@ import { SiteSettings } from './types'
  */
 export async function getSiteSettings(siteClient?: SanityClient): Promise<SiteSettings | null> {
   const activeClient = siteClient || client
+  if (!activeClient) return null
 
   const query = `
     *[_type == "siteSettings"][0] {
