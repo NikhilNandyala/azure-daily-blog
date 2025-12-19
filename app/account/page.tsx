@@ -4,6 +4,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import Link from '@/components/Link'
+import Image from 'next/image'
 
 export default function AccountPage() {
   const { data: session, status } = useSession()
@@ -48,10 +49,13 @@ export default function AccountPage() {
 
           <div className="mb-8 flex items-center space-x-4">
             {session.user?.image ? (
-              <img
+              <Image
                 src={session.user.image}
                 alt={session.user.name || 'User avatar'}
+                width={64}
+                height={64}
                 className="h-16 w-16 rounded-full"
+                unoptimized
               />
             ) : (
               <div className="bg-primary-500 flex h-16 w-16 items-center justify-center rounded-full text-white">

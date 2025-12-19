@@ -1,4 +1,4 @@
-import { client } from './client'
+import { getPublicClient, sanityConfigured } from './client'
 import { Post, PostListItem, Tag, Author, SiteSettings } from './types'
 
 /**
@@ -49,6 +49,11 @@ const POST_DETAIL_FIELDS = `
   canonicalUrl
 `
 
+function getClientOrNull() {
+  if (!sanityConfigured) return null
+  return getPublicClient()
+}
+
 /**
  * Get latest posts with limit
  * Used for homepage, recent posts sidebar, etc.
@@ -61,6 +66,9 @@ export async function getLatestPosts(limit: number = 10): Promise<PostListItem[]
       ${POST_LIST_FIELDS}
     }
   `
+
+  const client = getClientOrNull()
+  if (!client) return []
 
   try {
     const posts = await client.fetch<PostListItem[]>(query)
@@ -83,6 +91,9 @@ export async function getFeaturedPosts(limit: number = 3): Promise<PostListItem[
       ${POST_LIST_FIELDS}
     }
   `
+
+  const client = getClientOrNull()
+  if (!client) return []
 
   try {
     const posts = await client.fetch<PostListItem[]>(query)
@@ -109,6 +120,9 @@ export async function getAllPublishedPosts(
     }
   `
 
+  const client = getClientOrNull()
+  if (!client) return []
+
   try {
     const posts = await client.fetch<PostListItem[]>(query)
     return posts || []
@@ -124,6 +138,9 @@ export async function getAllPublishedPosts(
  */
 export async function getPublishedPostsCount(): Promise<number> {
   const query = `count(*[_type == "post" && status == "published"])`
+
+  const client = getClientOrNull()
+  if (!client) return 0
 
   try {
     const count = await client.fetch<number>(query)
@@ -145,6 +162,9 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     }
   `
 
+  const client = getClientOrNull()
+  if (!client) return null
+
   try {
     const post = await client.fetch<Post>(query, { slug })
     return post || null
@@ -164,6 +184,9 @@ export async function getAllPostSlugs(): Promise<Array<{ slug: string; published
       publishedAt
     }
   `
+
+  const client = getClientOrNull()
+  if (!client) return []
 
   try {
     const posts =
@@ -194,6 +217,9 @@ export async function getAllTags(): Promise<Tag[]> {
     }
   `
 
+  const client = getClientOrNull()
+  if (!client) return []
+
   try {
     const tags = await client.fetch<Tag[]>(query)
     return tags || []
@@ -219,6 +245,9 @@ export async function getPostsByTag(
       ${POST_LIST_FIELDS}
     }
   `
+
+  const client = getClientOrNull()
+  if (!client) return []
 
   try {
     const posts = await client.fetch<PostListItem[]>(query, { tagSlug })

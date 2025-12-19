@@ -86,10 +86,13 @@ const Header = ({ posts }: HeaderProps) => {
               aria-label="User menu"
             >
               {session.user?.image ? (
-                <img
+                <Image
                   src={session.user.image}
                   alt={session.user.name || 'User avatar'}
+                  width={32}
+                  height={32}
                   className="h-8 w-8 rounded-full"
+                  unoptimized
                 />
               ) : (
                 <div className="bg-primary-500 flex h-8 w-8 items-center justify-center rounded-full text-white">
