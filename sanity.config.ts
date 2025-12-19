@@ -7,14 +7,12 @@ import { structure } from './sanity/deskStructure'
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID || ''
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET || ''
 
-if (!projectId || !dataset) {
-  throw new Error('Missing NEXT_PUBLIC_SANITY_PROJECT_ID or NEXT_PUBLIC_SANITY_DATASET')
-}
-
-export default defineConfig({
+// Only throw at config time if env vars are missing (not at import time)
+// This allows the app to start even without Sanity config
+const config = {
   basePath: '/studio',
-  projectId,
-  dataset,
+  projectId: projectId || 'placeholder',
+  dataset: dataset || 'placeholder',
   plugins: [
     structureTool({
       structure,
@@ -24,4 +22,7 @@ export default defineConfig({
   schema: {
     types: schemaTypes,
   },
-})
+}
+
+// Validate only if Studio is accessed
+export default defineConfig(config)
