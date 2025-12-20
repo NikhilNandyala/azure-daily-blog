@@ -1,4 +1,4 @@
-import { getClientOrNull } from '@/lib/sanity/getClient'
+import { getPublicClient } from '@/lib/sanity/client'
 
 interface PostDebugInfo {
   title: string
@@ -10,8 +10,12 @@ interface PostDebugInfo {
   _id: string
 }
 
-async function getDebugPosts() {
-  const client = getClientOrNull()
+async function getDebugPosts(): Promise<{
+  configured: boolean
+  posts: PostDebugInfo[]
+  error?: string
+}> {
+  const client = getPublicClient()
   if (!client) {
     return { configured: false, posts: [] }
   }
