@@ -64,15 +64,15 @@ export interface Post {
   slug: {
     current: string
   }
-  excerpt: string
+  excerpt?: string
   body: PortableTextContent[]
-  coverImage: SanityImage
-  tags: Tag[]
+  coverImage?: SanityImage
+  tags?: Tag[]
   author: Author
-  publishedAt: string
+  publishedAt?: string
   status: 'draft' | 'published'
-  featured: boolean
-  membersOnly: boolean
+  featured?: boolean
+  membersOnly?: boolean
   seoTitle?: string
   seoDescription?: string
   canonicalUrl?: string

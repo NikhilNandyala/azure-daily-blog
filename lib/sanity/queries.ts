@@ -230,6 +230,35 @@ export async function getAllTags(): Promise<Tag[]> {
 }
 
 /**
+ * Get all tags with post counts
+ * Used for popular tags sidebar
+ */
+export async function getTagsWithCounts(): Promise<Array<{ tag: Tag; count: number }>> {
+  const query = `
+    *[_type == "tag"] {
+      "tag": {
+        _id,
+        title,
+        slug
+      },
+      "count": count(*[_type == "post" && status == "published" && ^._id in tags[]._ref])
+    }
+    | order(count desc)
+  `
+
+  const client = getClientOrNull()
+  if (!client) return []
+
+  try {
+    const tags = await client.fetch<Array<{ tag: Tag; count: number }>>(query)
+    return tags || []
+  } catch (error) {
+    console.error('Error fetching tags with counts:', error)
+    return []
+  }
+}
+
+/**
  * Get posts by tag slug
  * Used for tag detail page
  */

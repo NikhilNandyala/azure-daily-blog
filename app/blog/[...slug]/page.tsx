@@ -140,14 +140,18 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
                   <div>
                     <dt className="sr-only">Published on</dt>
                     <dd className="text-muted text-base leading-6 font-medium">
-                      <time dateTime={post.publishedAt}>
-                        {new Date(post.publishedAt).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </time>
+                      {post.publishedAt ? (
+                        <time dateTime={post.publishedAt}>
+                          {new Date(post.publishedAt).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </time>
+                      ) : (
+                        'Date not set'
+                      )}
                     </dd>
                   </div>
                 </dl>

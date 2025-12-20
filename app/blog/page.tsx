@@ -67,13 +67,15 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
                   <div className="flex flex-1 flex-col justify-between">
                     {/* Date and Tags */}
                     <div className="mb-3">
-                      <time className="text-muted text-sm">
-                        {new Date(post.publishedAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </time>
+                      {post.publishedAt && (
+                        <time className="text-muted text-sm">
+                          {new Date(post.publishedAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </time>
+                      )}
                       {post.tags && post.tags.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {post.tags.slice(0, 3).map((tag) => (

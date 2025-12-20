@@ -1,15 +1,15 @@
-import { slug } from 'github-slugger'
-import { allCoreContent, sortPosts } from 'pliny/utils/contentlayer'
 import siteMetadata from '@/data/siteMetadata'
-import ListLayout from '@/layouts/ListLayoutWithTags'
-import { allBlogs } from 'contentlayer/generated'
-import tagData from 'app/tag-data.json'
 import { genPageMetadata } from 'app/seo'
 import { Metadata } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { getPostsByTag, getPostsByTagCount, getAllTags } from '@/lib/sanity/queries'
+import SanityPostCard from '@/components/SanityPostCard'
+import PageTitle from '@/components/PageTitle'
+import SectionContainer from '@/components/SectionContainer'
+import Link from '@/components/Link'
 
-const POSTS_PER_PAGE = 5
+const POSTS_PER_PAGE = 10
 
 export async function generateMetadata(props: {
   params: Promise<{ tag: string }>
@@ -29,36 +29,68 @@ export async function generateMetadata(props: {
 }
 
 export const generateStaticParams = async () => {
-  const tagCounts = tagData as Record<string, number>
-  const tagKeys = Object.keys(tagCounts)
-  return tagKeys.map((tag) => ({
-    tag: encodeURI(tag),
+  const tags = await getAllTags()
+  return tags.map((tag) => ({
+    tag: tag.slug.current,
   }))
 }
 
+// Revalidate every hour
+export const revalidate = 3600
+
 export default async function TagPage(props: { params: Promise<{ tag: string }> }) {
   const params = await props.params
-  const tag = decodeURI(params.tag)
-  const title = tag[0].toUpperCase() + tag.split(' ').join('-').slice(1)
-  const filteredPosts = allCoreContent(
-    sortPosts(allBlogs.filter((post) => post.tags && post.tags.map((t) => slug(t)).includes(tag)))
-  )
-  const totalPages = Math.ceil(filteredPosts.length / POSTS_PER_PAGE)
-  const initialDisplayPosts = filteredPosts.slice(0, POSTS_PER_PAGE)
-  const pagination = {
-    currentPage: 1,
-    totalPages: totalPages,
-  }
+  const tagSlug = decodeURI(params.tag)
 
   const session = await getServerSession(authOptions)
+  const isAuthenticated = Boolean(session)
+
+  // Fetch posts by tag from Sanity
+  const posts = await getPostsByTag(tagSlug, POSTS_PER_PAGE, 0)
+  const totalCount = await getPostsByTagCount(tagSlug)
+  const totalPages = Math.ceil(totalCount / POSTS_PER_PAGE)
+
+  // Find the tag info for display
+  const allTags = await getAllTags()
+  const currentTag = allTags.find((t) => t.slug.current === tagSlug)
+  const title = currentTag?.title || tagSlug
 
   return (
-    <ListLayout
-      posts={filteredPosts}
-      initialDisplayPosts={initialDisplayPosts}
-      pagination={pagination}
-      title={title}
-      isAuthenticated={Boolean(session)}
-    />
+    <SectionContainer>
+      <div className="space-y-2 pt-6 pb-8 md:space-y-5">
+        <PageTitle>Tag: {title}</PageTitle>
+        <p className="text-muted text-lg">
+          {totalCount} {totalCount === 1 ? 'post' : 'posts'} tagged with &quot;{title}&quot;
+        </p>
+      </div>
+
+      {posts.length === 0 ? (
+        <div className="py-16 text-center">
+          <p className="text-muted">No posts found for this tag.</p>
+          <Link href="/tags" className="text-accent hover:text-primary-300 mt-4 inline-block">
+            ← View all tags
+          </Link>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-8">
+            {posts.map((post) => (
+              <SanityPostCard key={post._id} post={post} isAuthenticated={isAuthenticated} />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="mt-8 flex justify-center">
+              <Link
+                href={`/tags/${tagSlug}/page/2`}
+                className="text-accent hover:text-primary-300 font-medium"
+              >
+                Next Page →
+              </Link>
+            </div>
+          )}
+        </>
+      )}
+    </SectionContainer>
   )
 }

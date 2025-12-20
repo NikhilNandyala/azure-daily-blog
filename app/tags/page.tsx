@@ -1,15 +1,15 @@
 import Link from '@/components/Link'
-import Tag from '@/components/Tag'
-import { slug } from 'github-slugger'
-import tagData from 'app/tag-data.json'
 import { genPageMetadata } from 'app/seo'
+import { getTagsWithCounts } from '@/lib/sanity/queries'
 
 export const metadata = genPageMetadata({ title: 'Tags', description: 'Things I blog about' })
 
+// Revalidate every hour
+export const revalidate = 3600
+
 export default async function Page() {
-  const tagCounts = tagData as Record<string, number>
-  const tagKeys = Object.keys(tagCounts)
-  const sortedTags = tagKeys.sort((a, b) => tagCounts[b] - tagCounts[a])
+  const tagsWithCounts = await getTagsWithCounts()
+
   return (
     <>
       <div className="flex flex-col items-start justify-start divide-y divide-white/6 md:mt-24 md:flex-row md:items-center md:justify-center md:space-x-6 md:divide-y-0">
@@ -19,17 +19,24 @@ export default async function Page() {
           </h1>
         </div>
         <div className="flex max-w-lg flex-wrap">
-          {tagKeys.length === 0 && 'No tags found.'}
-          {sortedTags.map((t) => {
+          {tagsWithCounts.length === 0 && (
+            <p className="text-muted">No tags found. Add tags in Sanity to see them here.</p>
+          )}
+          {tagsWithCounts.map(({ tag, count }) => {
             return (
-              <div key={t} className="mt-2 mr-5 mb-2">
-                <Tag text={t} />
+              <div key={tag._id} className="mt-2 mr-5 mb-2">
                 <Link
-                  href={`/tags/${slug(t)}`}
-                  className="text-muted -ml-2 text-sm font-semibold uppercase"
-                  aria-label={`View posts tagged ${t}`}
+                  href={`/tags/${tag.slug.current}`}
+                  className="text-accent hover:text-primary-300 mr-3 text-sm font-medium uppercase"
                 >
-                  {` (${tagCounts[t]})`}
+                  {tag.title}
+                </Link>
+                <Link
+                  href={`/tags/${tag.slug.current}`}
+                  className="text-muted -ml-2 text-sm font-semibold uppercase"
+                  aria-label={`View posts tagged ${tag.title}`}
+                >
+                  {` (${count})`}
                 </Link>
               </div>
             )
