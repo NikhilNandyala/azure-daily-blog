@@ -1,5 +1,6 @@
 import { defineType, defineField } from 'sanity'
 import { BlockElementIcon } from '@sanity/icons'
+import { codeInput } from '@sanity/code-input'
 
 export const postType = defineType({
   name: 'post',
@@ -88,6 +89,58 @@ export const postType = defineType({
         {
           type: 'image',
           options: { hotspot: true },
+          fields: [
+            {
+              name: 'alt',
+              title: 'Alt Text',
+              type: 'string',
+              description: 'Important for SEO and accessibility',
+            },
+            {
+              name: 'caption',
+              title: 'Caption',
+              type: 'string',
+            },
+          ],
+        },
+        {
+          type: 'code',
+          name: 'code',
+          title: 'Code Block',
+          options: {
+            language: 'javascript',
+            languageAlternatives: [
+              { title: 'JavaScript', value: 'javascript' },
+              { title: 'TypeScript', value: 'typescript' },
+              { title: 'JSX', value: 'jsx' },
+              { title: 'TSX', value: 'tsx' },
+              { title: 'Python', value: 'python' },
+              { title: 'Bash', value: 'bash' },
+              { title: 'Shell', value: 'shell' },
+              { title: 'PowerShell', value: 'powershell' },
+              { title: 'JSON', value: 'json' },
+              { title: 'YAML', value: 'yaml' },
+              { title: 'Markdown', value: 'markdown' },
+              { title: 'HTML', value: 'html' },
+              { title: 'CSS', value: 'css' },
+              { title: 'SCSS', value: 'scss' },
+              { title: 'SQL', value: 'sql' },
+              { title: 'GraphQL', value: 'graphql' },
+              { title: 'Go', value: 'go' },
+              { title: 'Rust', value: 'rust' },
+              { title: 'C#', value: 'csharp' },
+              { title: 'Java', value: 'java' },
+              { title: 'PHP', value: 'php' },
+              { title: 'Ruby', value: 'ruby' },
+              { title: 'Swift', value: 'swift' },
+              { title: 'Kotlin', value: 'kotlin' },
+              { title: 'Dart', value: 'dart' },
+              { title: 'Dockerfile', value: 'dockerfile' },
+              { title: 'NGINX', value: 'nginx' },
+              { title: 'Terraform', value: 'terraform' },
+            ],
+            withFilename: true,
+          },
         },
       ],
       validation: (rule) => rule.required().min(1),

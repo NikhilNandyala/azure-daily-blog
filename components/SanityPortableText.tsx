@@ -1,6 +1,7 @@
 import { PortableText as PortableTextComponent, PortableTextComponents } from '@portabletext/react'
 import Image from 'next/image'
 import Link from '@/components/Link'
+import { CodeBlock } from '@/components/CodeBlock'
 import { PortableTextContent } from '@/lib/sanity/types'
 
 /**
@@ -9,22 +10,32 @@ import { PortableTextContent } from '@/lib/sanity/types'
  */
 const portableTextComponents: PortableTextComponents = {
   block: {
-    // Headings
+    // Headings with proper spacing and styling
     h1: ({ children }) => (
-      <h1 className="text-body mt-8 mb-4 text-3xl font-bold md:text-4xl">{children}</h1>
+      <h1 className="text-body mt-12 mb-6 scroll-mt-20 text-4xl leading-tight font-extrabold md:text-5xl">
+        {children}
+      </h1>
     ),
     h2: ({ children }) => (
-      <h2 className="text-body mt-6 mb-3 text-2xl font-bold md:text-3xl">{children}</h2>
+      <h2 className="text-body mt-10 mb-4 scroll-mt-20 text-3xl leading-snug font-bold md:text-4xl">
+        {children}
+      </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="text-body mt-5 mb-2 text-xl font-bold md:text-2xl">{children}</h3>
+      <h3 className="text-body mt-8 mb-3 scroll-mt-20 text-2xl leading-snug font-bold md:text-3xl">
+        {children}
+      </h3>
     ),
-    h4: ({ children }) => <h4 className="text-body mt-4 mb-2 text-lg font-bold">{children}</h4>,
-    // Normal paragraphs
-    normal: ({ children }) => <p className="text-body mb-4 leading-relaxed">{children}</p>,
-    // Blockquotes
+    h4: ({ children }) => (
+      <h4 className="text-body mt-6 mb-3 scroll-mt-20 text-xl leading-snug font-bold md:text-2xl">
+        {children}
+      </h4>
+    ),
+    // Normal paragraphs with optimal line height
+    normal: ({ children }) => <p className="text-body mb-6 text-lg leading-relaxed">{children}</p>,
+    // Blockquotes with accent border
     blockquote: ({ children }) => (
-      <blockquote className="border-accent text-muted my-4 border-l-4 bg-gray-100 py-2 pl-4 italic dark:bg-gray-900">
+      <blockquote className="border-accent text-muted my-6 border-l-4 bg-gray-100 py-4 pl-6 italic dark:bg-gray-800">
         {children}
       </blockquote>
     ),
@@ -32,10 +43,10 @@ const portableTextComponents: PortableTextComponents = {
 
   // Text marks
   marks: {
-    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+    strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
     em: ({ children }) => <em className="italic">{children}</em>,
     code: ({ children }) => (
-      <code className="text-accent rounded bg-gray-100 px-2 py-1 font-mono text-sm dark:bg-gray-800">
+      <code className="rounded bg-gray-800 px-2 py-1 font-mono text-sm text-pink-400">
         {children}
       </code>
     ),
@@ -50,7 +61,7 @@ const portableTextComponents: PortableTextComponents = {
           href={value?.href || '#'}
           target={target}
           rel={rel}
-          className="text-accent hover:underline"
+          className="text-accent decoration-accent/30 hover:decoration-accent font-medium underline underline-offset-2 transition-colors"
         >
           {children}
         </Link>
@@ -58,42 +69,51 @@ const portableTextComponents: PortableTextComponents = {
     },
   },
 
-  // Lists
+  // Lists with better spacing
   list: {
     bullet: ({ children }) => (
-      <ul className="text-body mb-4 ml-2 list-inside list-disc space-y-2">{children}</ul>
+      <ul className="text-body mb-6 ml-6 list-disc space-y-2 text-lg leading-relaxed">
+        {children}
+      </ul>
     ),
     number: ({ children }) => (
-      <ol className="text-body mb-4 ml-2 list-inside list-decimal space-y-2">{children}</ol>
+      <ol className="text-body mb-6 ml-6 list-decimal space-y-2 text-lg leading-relaxed">
+        {children}
+      </ol>
     ),
   },
 
   listItem: {
-    bullet: ({ children }) => <li className="text-body">{children}</li>,
-    number: ({ children }) => <li className="text-body">{children}</li>,
+    bullet: ({ children }) => <li className="text-body pl-2">{children}</li>,
+    number: ({ children }) => <li className="text-body pl-2">{children}</li>,
   },
 
-  // Images
+  // Images and Code blocks
   types: {
     image: ({ value }) => {
       if (!value?.asset?.url) return null
 
       return (
-        <figure className="my-6">
-          <div className="relative h-96 w-full">
+        <figure className="my-8">
+          <div className="relative h-96 w-full overflow-hidden rounded-lg">
             <Image
               src={value.asset.url}
               alt={value.alt || 'Post image'}
               fill
-              className="rounded-lg object-cover"
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 100vw"
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"
             />
           </div>
           {value.caption && (
-            <figcaption className="text-muted mt-2 text-center text-sm">{value.caption}</figcaption>
+            <figcaption className="text-muted mt-3 text-center text-sm italic">
+              {value.caption}
+            </figcaption>
           )}
         </figure>
       )
+    },
+    code: ({ value }) => {
+      return <CodeBlock value={value} />
     },
   },
 }
@@ -108,8 +128,8 @@ interface PortableTextProps {
  */
 export function SanityPortableText({ value }: PortableTextProps) {
   return (
-    <div className="prose dark:prose-invert max-w-none">
+    <article className="prose prose-lg prose-invert mx-auto max-w-none">
       <PortableTextComponent value={value} components={portableTextComponents} />
-    </div>
+    </article>
   )
 }

@@ -1,6 +1,7 @@
 import { defineConfig } from 'sanity'
 import { structureTool } from 'sanity/structure'
 import { visionTool } from '@sanity/vision'
+import { codeInput } from '@sanity/code-input'
 import { schemaTypes } from './sanity/schemaTypes'
 import { structure } from './sanity/deskStructure'
 
@@ -18,6 +19,7 @@ const config = {
       structure,
     }),
     visionTool(),
+    codeInput(),
   ],
   schema: {
     types: schemaTypes,
