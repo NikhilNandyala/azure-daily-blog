@@ -146,11 +146,19 @@ export const postType = defineType({
       validation: (rule) => rule.required().min(1),
     }),
     defineField({
+      name: 'markdownBody',
+      title: 'Markdown Body',
+      type: 'text',
+      description:
+        'Optional: Use Markdown instead of rich text. Supports GitHub Flavored Markdown, code blocks, Mermaid diagrams, and more.',
+      rows: 20,
+    }),
+    defineField({
       name: 'coverImage',
       title: 'Cover Image',
       type: 'image',
       options: { hotspot: true },
-      validation: (rule) => rule.required(),
+      description: 'Optional: Cover image for the post',
     }),
     defineField({
       name: 'tags',

@@ -1,4 +1,5 @@
 import 'css/prism.css'
+import 'css/highlight.css'
 import 'katex/dist/katex.css'
 
 import { notFound } from 'next/navigation'
@@ -11,6 +12,7 @@ import { getSiteSettings } from '@/lib/sanity/getSiteSettings'
 import { getPostBySlug, getAllPostSlugs } from '@/lib/sanity/queriesDraft'
 import { getSanityClient } from '@/lib/sanity/getClient'
 import { SanityPortableText } from '@/components/SanityPortableText'
+import { PostBody } from '@/components/PostBody'
 import { SanityCoverImage } from '@/components/SanityImage'
 import { buildPostMetadata, generateBlogPostSchema } from '@/lib/sanity/seo'
 import { DraftModeBanner } from '@/components/DraftModeBanner'
@@ -182,7 +184,11 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
             )}
 
             <div className="prose dark:prose-invert max-w-none py-6">
-              <SanityPortableText value={post.body} />
+              {post.markdownBody ? (
+                <PostBody content={post.markdownBody} />
+              ) : (
+                <SanityPortableText value={post.body} />
+              )}
             </div>
           </div>
         </div>

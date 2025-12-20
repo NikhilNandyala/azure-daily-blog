@@ -1,0 +1,274 @@
+/**
+ * Syntax Highlighting Styles for Code Blocks
+ * Using GitHub Dark theme for dark mode compatibility
+ */
+
+/* Code block container */
+.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+  background: #0d1117;
+  color: #c9d1d9;
+}
+
+/* Comments */
+.hljs-comment,
+.hljs-quote {
+  color: #8b949e;
+  font-style: italic;
+}
+
+/* Keywords */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: #ff7b72;
+  font-weight: bold;
+}
+
+/* Numbers */
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag .hljs-attr {
+  color: #79c0ff;
+}
+
+/* Strings */
+.hljs-string,
+.hljs-doctag {
+  color: #a5d6ff;
+}
+
+/* Titles and sections */
+.hljs-title,
+.hljs-section,
+.hljs-selector-id {
+  color: #d2a8ff;
+  font-weight: bold;
+}
+
+/* Function names */
+.hljs-title.class_,
+.hljs-title.class_.inherited__,
+.hljs-title.function_ {
+  color: #d2a8ff;
+}
+
+/* Attributes */
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-regexp,
+.hljs-link {
+  color: #79c0ff;
+}
+
+/* Built-ins */
+.hljs-built_in,
+.hljs-builtin-name {
+  color: #ffa657;
+}
+
+/* Meta */
+.hljs-meta,
+.hljs-meta .hljs-keyword {
+  color: #79c0ff;
+}
+
+/* Symbols */
+.hljs-symbol,
+.hljs-bullet {
+  color: #79c0ff;
+}
+
+/* Operators */
+.hljs-operator {
+  color: #ff7b72;
+}
+
+/* Types */
+.hljs-type {
+  color: #ffa657;
+}
+
+/* Params */
+.hljs-params {
+  color: #c9d1d9;
+}
+
+/* Template strings */
+.hljs-template-tag,
+.hljs-template-variable {
+  color: #a5d6ff;
+}
+
+/* Deletion (diffs) */
+.hljs-deletion {
+  color: #ffa198;
+  background-color: #490202;
+}
+
+/* Addition (diffs) */
+.hljs-addition {
+  color: #56d364;
+  background-color: #0f5323;
+}
+
+/* Emphasis */
+.hljs-emphasis {
+  font-style: italic;
+}
+
+/* Strong */
+.hljs-strong {
+  font-weight: bold;
+}
+
+/* Language-specific adjustments */
+
+/* JavaScript/TypeScript */
+.hljs-keyword.hljs-const,
+.hljs-keyword.hljs-let,
+.hljs-keyword.hljs-var {
+  color: #ff7b72;
+}
+
+/* JSX/TSX */
+.hljs-tag {
+  color: #7ee787;
+}
+
+.hljs-tag .hljs-name {
+  color: #7ee787;
+}
+
+.hljs-tag .hljs-attr {
+  color: #79c0ff;
+}
+
+/* Python */
+.hljs-decorator,
+.hljs-decorator .hljs-title {
+  color: #ffa657;
+}
+
+/* CSS/SCSS */
+.hljs-selector-class,
+.hljs-selector-pseudo {
+  color: #79c0ff;
+}
+
+.hljs-selector-attr {
+  color: #79c0ff;
+}
+
+/* JSON */
+.hljs-attr {
+  color: #79c0ff;
+}
+
+/* Shell/Bash */
+.hljs-meta.hljs-prompt {
+  color: #8b949e;
+  user-select: none;
+}
+
+/* SQL */
+.hljs-built_in.hljs-keyword {
+  color: #ff7b72;
+}
+
+/* Markdown */
+.hljs-section {
+  color: #d2a8ff;
+  font-weight: bold;
+}
+
+.hljs-code {
+  color: #a5d6ff;
+}
+
+/* YAML */
+.hljs-bullet {
+  color: #79c0ff;
+}
+
+/* Docker */
+.hljs-keyword {
+  color: #ff7b72;
+}
+
+/* Terraform */
+.hljs-class .hljs-title,
+.hljs-title.class_ {
+  color: #d2a8ff;
+}
+
+/* Azure CLI / PowerShell */
+.hljs-cmdlet {
+  color: #d2a8ff;
+}
+
+.hljs-parameter {
+  color: #79c0ff;
+}
+
+/* Line highlighting for errors/warnings */
+.hljs-ln-line.highlighted {
+  background-color: rgba(255, 123, 114, 0.1);
+}
+
+.hljs-ln-line.highlighted.error {
+  background-color: rgba(248, 81, 73, 0.15);
+  border-left: 3px solid #f85149;
+}
+
+.hljs-ln-line.highlighted.warning {
+  background-color: rgba(187, 128, 9, 0.15);
+  border-left: 3px solid #bb8009;
+}
+
+/* Selection */
+.hljs::selection,
+.hljs *::selection {
+  background-color: rgba(121, 192, 255, 0.3);
+}
+
+/* Mermaid diagram dark theme support */
+.mermaid-diagram {
+  background-color: #0f172a;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Override any light theme Mermaid styles */
+.mermaid-diagram .node rect,
+.mermaid-diagram .node circle,
+.mermaid-diagram .node ellipse,
+.mermaid-diagram .node polygon {
+  fill: #1e293b !important;
+  stroke: #60a5fa !important;
+}
+
+.mermaid-diagram .nodeLabel {
+  color: #fff !important;
+}
+
+.mermaid-diagram .edgeLabel {
+  background-color: #1e293b !important;
+  color: #fff !important;
+}
+
+/* Responsive code blocks */
+@media (max-width: 768px) {
+  .hljs {
+    font-size: 0.875rem;
+    padding: 0.75rem;
+  }
+}

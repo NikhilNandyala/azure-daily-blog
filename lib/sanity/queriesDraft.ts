@@ -32,6 +32,7 @@ const POST_DETAIL_FIELDS = `
   slug,
   excerpt,
   body,
+  markdownBody,
   coverImage {
     asset -> { url },
     hotspot,

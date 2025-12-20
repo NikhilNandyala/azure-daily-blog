@@ -66,6 +66,7 @@ export interface Post {
   }
   excerpt?: string
   body: PortableTextContent[]
+  markdownBody?: string
   coverImage?: SanityImage
   tags?: Tag[]
   author: Author
