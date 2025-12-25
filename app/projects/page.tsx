@@ -1,11 +1,29 @@
-import projectsData from '@/data/projectsData'
-import Card from '@/components/Card'
 import Link from '@/components/Link'
 import { genPageMetadata } from 'app/seo'
+import {
+  getAllProjects,
+  getFeaturedProjects,
+  getProjectCategories,
+} from '@/lib/sanity/projectQueries'
+import { ProjectsClient } from '@/components/ProjectsClient'
 
-export const metadata = genPageMetadata({ title: 'Projects' })
+export const metadata = genPageMetadata({
+  title: 'Projects',
+  description:
+    'Explore my portfolio of projects, from web applications to infrastructure and tools.',
+})
 
-export default function Projects() {
+// ISR - Revalidate every 1 hour
+export const revalidate = 3600
+
+export default async function Projects() {
+  // Fetch all projects and featured projects
+  const [allProjects, featuredProjects, categories] = await Promise.all([
+    getAllProjects(),
+    getFeaturedProjects(6),
+    getProjectCategories(),
+  ])
+
   return (
     <>
       <div className="divide-y divide-white/6">
@@ -34,21 +52,21 @@ export default function Projects() {
             Projects
           </h1>
           <p className="text-muted text-lg leading-7">
-            Showcase your projects with a hero image (16 x 9)
+            Explore my portfolio of projects, from web applications to infrastructure and tools.
           </p>
         </div>
         <div className="container py-12">
-          <div className="-m-4 flex flex-wrap">
-            {projectsData.map((d) => (
-              <Card
-                key={d.title}
-                title={d.title}
-                description={d.description}
-                imgSrc={d.imgSrc}
-                href={d.href}
-              />
-            ))}
-          </div>
+          {allProjects.length > 0 ? (
+            <ProjectsClient
+              projects={allProjects}
+              featuredProjects={featuredProjects}
+              categories={categories}
+            />
+          ) : (
+            <div className="py-16 text-center">
+              <p className="text-muted">No projects available yet. Check back soon!</p>
+            </div>
+          )}
         </div>
       </div>
     </>

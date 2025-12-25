@@ -82,6 +82,73 @@ export const structure: StructureResolver = (S) =>
       S.divider(),
 
       // ====================================================================
+      // PROJECTS SECTION
+      // ====================================================================
+      S.listItem()
+        .title('Projects')
+        .icon(DocumentsIcon)
+        .child(
+          S.list()
+            .title('Projects')
+            .items([
+              // All Projects
+              S.listItem()
+                .title('All Projects')
+                .child(
+                  S.documentList()
+                    .title('All Projects')
+                    .filter('_type == "project"')
+                    .defaultOrdering([{ field: 'publishedAt', direction: 'desc' }])
+                )
+                .icon(DocumentsIcon),
+
+              S.divider(),
+
+              // Featured Projects
+              S.listItem()
+                .title('Featured')
+                .child(
+                  S.documentList()
+                    .title('Featured Projects')
+                    .filter('_type == "project" && featured == true')
+                    .defaultOrdering([{ field: 'publishedAt', direction: 'desc' }])
+                ),
+
+              // Active Projects
+              S.listItem()
+                .title('Active')
+                .child(
+                  S.documentList()
+                    .title('Active Projects')
+                    .filter('_type == "project" && status == "active"')
+                    .defaultOrdering([{ field: 'publishedAt', direction: 'desc' }])
+                ),
+
+              // Paused Projects
+              S.listItem()
+                .title('Paused')
+                .child(
+                  S.documentList()
+                    .title('Paused Projects')
+                    .filter('_type == "project" && status == "paused"')
+                    .defaultOrdering([{ field: 'publishedAt', direction: 'desc' }])
+                ),
+
+              // Archived Projects
+              S.listItem()
+                .title('Archived')
+                .child(
+                  S.documentList()
+                    .title('Archived Projects')
+                    .filter('_type == "project" && status == "archived"')
+                    .defaultOrdering([{ field: 'publishedAt', direction: 'desc' }])
+                ),
+            ])
+        ),
+
+      S.divider(),
+
+      // ====================================================================
       // TAGS SECTION
       // ====================================================================
       S.listItem()

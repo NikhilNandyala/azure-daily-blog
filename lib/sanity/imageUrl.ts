@@ -118,6 +118,34 @@ export function urlForBlur(source: SanityImage | SanityImage['asset']): string {
 }
 
 /**
+ * Get flexible image URL builder for custom transformations
+ * Returns a builder that can be chained with methods like .width(), .height(), .quality(), etc.
+ */
+export function urlForImage(source: SanityImage | SanityImage['asset']) {
+  const activeBuilder = getBuilder()
+  if (!activeBuilder || !source) {
+    // Return a mock builder that returns empty string
+    return {
+      width: () => ({ height: () => ({ url: () => '' }) }),
+      height: () => ({ width: () => ({ url: () => '' }) }),
+      url: () => '',
+    }
+  }
+
+  try {
+    const imageSource = 'asset' in source ? source : { asset: source }
+    return activeBuilder.image(imageSource).auto('format').fit('max')
+  } catch (error) {
+    console.warn('Error generating Sanity image URL:', error)
+    return {
+      width: () => ({ height: () => ({ url: () => '' }) }),
+      height: () => ({ width: () => ({ url: () => '' }) }),
+      url: () => '',
+    }
+  }
+}
+
+/**
  * Get dimensions of a Sanity image
  */
 export function getImageDimensions(source: SanityImage): {

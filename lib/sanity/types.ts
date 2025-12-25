@@ -82,6 +82,30 @@ export interface Post {
 
 export type PostListItem = Omit<Post, 'body'>
 
+export interface Project {
+  _id: string
+  _createdAt: string
+  _updatedAt?: string
+  title: string
+  slug: {
+    current: string
+  }
+  shortDescription: string
+  body?: PortableTextContent[]
+  heroImage?: SanityImage & { alt?: string }
+  gallery?: Array<SanityImage & { alt?: string; caption?: string }>
+  techStack?: string[]
+  category?: string
+  status: 'active' | 'paused' | 'archived'
+  repoUrl?: string
+  liveUrl?: string
+  docsUrl?: string
+  featured?: boolean
+  publishedAt?: string
+}
+
+export type ProjectListItem = Omit<Project, 'body' | 'gallery'>
+
 export interface SiteSettings {
   siteTitle: string
   siteDescription: string
