@@ -77,6 +77,7 @@ export interface Post {
   seoTitle?: string
   seoDescription?: string
   canonicalUrl?: string
+  views?: number
 }
 
 export type PostListItem = Omit<Post, 'body'>

@@ -219,6 +219,14 @@ export const postType = defineType({
       initialValue: false,
     }),
     defineField({
+      name: 'views',
+      title: 'Views',
+      type: 'number',
+      description: 'Number of times this post has been viewed',
+      initialValue: 0,
+      readOnly: true,
+    }),
+    defineField({
       name: 'seoTitle',
       title: 'SEO Title',
       type: 'string',

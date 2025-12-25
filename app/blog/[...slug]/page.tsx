@@ -14,6 +14,7 @@ import { getSanityClient } from '@/lib/sanity/getClient'
 import { SanityPortableText } from '@/components/SanityPortableText'
 import { PostBody } from '@/components/PostBody'
 import { SanityCoverImage } from '@/components/SanityImage'
+import { ViewTracker } from '@/components/ViewTracker'
 import { buildPostMetadata, generateBlogPostSchema } from '@/lib/sanity/seo'
 import { DraftModeBanner } from '@/components/DraftModeBanner'
 import { sanityConfigured, getPublicClient } from '@/lib/sanity/client'
@@ -124,6 +125,7 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
   return (
     <>
       {draft.isEnabled && <DraftModeBanner />}
+      <ViewTracker slug={slug} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

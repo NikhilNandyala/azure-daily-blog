@@ -3,8 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { getAllPublishedPosts, getTagsWithCounts } from '@/lib/sanity/queries'
 import SanityLatestPosts from '@/components/SanityLatestPosts'
 import SanityPopularTags from '@/components/SanityPopularTags'
-import SidebarCard from '@/components/SidebarCard'
-import NewsletterForm from 'pliny/ui/NewsletterForm'
+import MostVisited from '@/components/MostVisited'
 import Header from '@/components/Header'
 
 // Revalidate every hour (3600 seconds)
@@ -29,9 +28,7 @@ export default async function Page() {
 
         {/* Sidebar */}
         <div className="col-span-1 space-y-6 lg:col-span-4">
-          <SidebarCard title="Newsletter">
-            <NewsletterForm />
-          </SidebarCard>
+          <MostVisited posts={posts} />
           <SanityPopularTags tags={tagsWithCounts} limit={10} />
         </div>
       </div>

@@ -21,7 +21,8 @@ const POST_LIST_FIELDS = `
   publishedAt,
   featured,
   membersOnly,
-  status
+  status,
+  views
 `
 
 const POST_DETAIL_FIELDS = `
@@ -46,7 +47,8 @@ const POST_DETAIL_FIELDS = `
   canonicalUrl,
   featured,
   membersOnly,
-  status
+  status,
+  views
 `
 
 /**
