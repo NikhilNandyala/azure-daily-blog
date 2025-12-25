@@ -132,6 +132,26 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
         <div className={`xl:divide-y xl:divide-white/6 ${draft.isEnabled ? 'pt-24' : ''}`}>
           <div className="divide-y divide-white/6 pb-8 xl:col-span-3 xl:pb-0">
             <header className="py-6">
+              <div className="mb-6">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 text-sm text-blue-400 transition-colors hover:text-blue-300"
+                  aria-label="Back to home page"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
+                  Back to Home
+                </Link>
+              </div>
               <div className="space-y-1 text-center">
                 {draft.isEnabled && post.status === 'draft' && (
                   <div className="mb-4 inline-block rounded-full border border-amber-500 bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-600">
