@@ -6,38 +6,25 @@ interface MostVisitedProps {
   posts: PostListItem[]
 }
 
-/**
- * MostVisited Widget - Displays top 5 most visited blog posts
- *
- * Initial ranking strategy (fallback when views not available):
- * 1. Featured posts first
- * 2. Then by newest (publishedAt)
- *
- * Future enhancement: Will rank by actual view counts from Sanity
- */
 export default function MostVisited({ posts }: MostVisitedProps) {
-  // Rank posts: featured first, then by views (or publishedAt as fallback)
   const rankedPosts = [...posts]
     .sort((a, b) => {
-      // If views field exists and is populated, use it
       const viewsA = (a as PostListItem & { views?: number }).views || 0
       const viewsB = (b as PostListItem & { views?: number }).views || 0
 
       if (viewsA !== viewsB) {
-        return viewsB - viewsA // Higher views first
+        return viewsB - viewsA
       }
 
-      // Fallback 1: Featured posts first
       if (a.featured !== b.featured) {
         return a.featured ? -1 : 1
       }
 
-      // Fallback 2: Newest first
       const dateA = new Date(a.publishedAt || 0).getTime()
       const dateB = new Date(b.publishedAt || 0).getTime()
       return dateB - dateA
     })
-    .slice(0, 5) // Top 5 posts
+    .slice(0, 5)
 
   return (
     <SidebarCard title="Most Visited">
@@ -50,23 +37,30 @@ export default function MostVisited({ posts }: MostVisitedProps) {
             <div key={post._id} className="group">
               <Link href={postUrl} className="block">
                 <div className="flex items-start gap-3">
-                  {/* Rank Number */}
+                  {/* Rank badge */}
                   <div
-                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                    style={
                       index === 0
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-800 text-gray-400 group-hover:bg-blue-500/20 group-hover:text-blue-400'
-                    }`}
+                        ? {
+                            background: 'linear-gradient(135deg, var(--azure), #0063b1)',
+                            boxShadow: '0 0 10px var(--azure-glow)',
+                          }
+                        : { background: 'var(--surface-2)', color: 'var(--muted)' }
+                    }
                   >
                     {index + 1}
                   </div>
 
                   {/* Post Info */}
                   <div className="min-w-0 flex-1">
-                    <h3 className="line-clamp-2 text-sm font-medium text-gray-200 transition-colors group-hover:text-blue-400">
+                    <h3
+                      className="line-clamp-2 text-sm font-medium transition-colors group-hover:text-[var(--azure-light)]"
+                      style={{ color: 'var(--text)' }}
+                    >
                       {post.title}
                     </h3>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                    <div className="mt-1 flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
                       {views !== undefined && views > 0 ? (
                         <>
                           <svg
@@ -86,7 +80,10 @@ export default function MostVisited({ posts }: MostVisitedProps) {
                       ) : (
                         <>
                           {post.featured && (
-                            <span className="inline-flex items-center gap-1 text-blue-400">
+                            <span
+                              className="inline-flex items-center gap-1"
+                              style={{ color: 'var(--azure-light)' }}
+                            >
                               <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                               </svg>
@@ -112,7 +109,9 @@ export default function MostVisited({ posts }: MostVisitedProps) {
         })}
 
         {rankedPosts.length === 0 && (
-          <p className="text-sm text-gray-500">No posts available yet.</p>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>
+            No posts available yet.
+          </p>
         )}
       </div>
     </SidebarCard>

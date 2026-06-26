@@ -4,6 +4,134 @@
 @source '../node_modules/pliny';
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Azure Daily Blog design system ─────────────────────────── */
+:root {
+  --bg: #050d1a;
+  --surface: #0a1628;
+  --surface-2: #0f1f38;
+  --surface-3: #162540;
+  --azure: #0078d4;
+  --azure-light: #2899f5;
+  --azure-glow: rgba(0, 120, 212, 0.25);
+  --cyan: #00bcf2;
+  --cyan-glow: rgba(0, 188, 242, 0.15);
+  --text: #e8f0fe;
+  --muted: #7a9cc4;
+  --border: rgba(0, 120, 212, 0.2);
+  --border-bright: rgba(0, 188, 242, 0.35);
+}
+
+@keyframes drift-1 { 0%,100% { transform: translate(0,0) } 50% { transform: translate(30px,20px) } }
+@keyframes drift-2 { 0%,100% { transform: translate(0,0) } 50% { transform: translate(-20px,30px) } }
+@keyframes drift-3 { 0%,100% { transform: translate(0,0) } 50% { transform: translate(15px,-25px) } }
+@keyframes float-up {
+  0%   { opacity: 0; transform: translateY(0) }
+  10%  { opacity: 0.5 }
+  90%  { opacity: 0.1 }
+  100% { opacity: 0; transform: translateY(-80vh) }
+}
+@keyframes pulse-dot {
+  0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(0,188,242,0.4) }
+  50%      { opacity:.7; box-shadow: 0 0 0 6px rgba(0,188,242,0) }
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, var(--azure-light), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.card-accent {
+  position: relative;
+}
+.card-accent::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--azure), var(--cyan));
+  border-radius: 3px 0 0 3px;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.card-accent:hover::before { opacity: 1; }
+
+.top-gradient-line {
+  position: relative;
+}
+.top-gradient-line::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--azure), transparent);
+}
+
+/* Post card base + hover */
+.post-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.25s;
+  padding: 20px 24px;
+}
+.post-card:hover {
+  border-color: var(--border-bright);
+  transform: translateX(4px);
+  background: var(--surface-2);
+}
+
+/* Featured variant: gradient bg + always-visible accent bar */
+.post-card.post-card--featured {
+  background: linear-gradient(135deg, var(--surface) 0%, rgba(0,120,212,0.05) 100%);
+  border-color: rgba(0, 120, 212, 0.3);
+}
+.post-card.post-card--featured.card-accent::before { opacity: 1; }
+
+/* Dim sibling cards when one is hovered */
+.post-list:has(.post-card:hover) .post-card:not(:hover) {
+  opacity: 0.55;
+}
+
+/* Tag pills */
+.tag-pill {
+  display: inline-block;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 20px;
+  padding: 2px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  text-decoration: none;
+  transition: border-color 0.2s, color 0.2s;
+}
+.tag-pill:hover {
+  border-color: var(--azure);
+  color: var(--azure-light);
+}
+.tag-pill--azure {
+  background: rgba(0, 120, 212, 0.08);
+  border-color: rgba(0, 120, 212, 0.4);
+  color: var(--azure-light);
+}
+
+/* Azure CTA button */
+.btn-azure {
+  background: linear-gradient(135deg, var(--azure), #0063b1);
+  box-shadow: 0 0 16px var(--azure-glow);
+  color: #fff;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-azure:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 24px var(--azure-glow);
+}
+
+/* ─────────────────────────────────────────────────────────── */
+
 /* Core theme configuration */
 @theme {
   /* Font families */

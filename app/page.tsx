@@ -20,6 +20,69 @@ export default async function Page() {
   return (
     <>
       <Header posts={[]} />
+
+      {/* Hero section */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, var(--surface-2) 0%, rgba(0,120,212,0.08) 100%)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          padding: '32px 36px',
+          marginBottom: 28,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Top shimmer line */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+            background:
+              'linear-gradient(90deg, transparent, var(--azure), var(--cyan), transparent)',
+          }}
+        />
+
+        {/* Live badge */}
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'rgba(0,188,242,0.1)',
+            border: '1px solid rgba(0,188,242,0.25)',
+            borderRadius: 20,
+            padding: '4px 12px',
+            fontSize: 11,
+            color: 'var(--cyan)',
+            marginBottom: 14,
+          }}
+        >
+          <div
+            style={{
+              width: 6,
+              height: 6,
+              background: 'var(--cyan)',
+              borderRadius: '50%',
+              animation: 'pulse-dot 2s ease-in-out infinite',
+            }}
+          />
+          Live · Azure engineering insights
+        </div>
+
+        <h1 style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.3, marginBottom: 8, color: 'var(--text)' }}>
+          Real Azure problems.<br />
+          <span className="gradient-text">Real fixes.</span>
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+          Deep-dives on networking, IaC, and cloud architecture — written by engineers in the
+          field.
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
         {/* Main Content */}
         <div className="col-span-1 lg:col-span-8">

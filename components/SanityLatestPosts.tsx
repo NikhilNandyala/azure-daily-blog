@@ -18,7 +18,7 @@ export default function SanityLatestPosts({
   return (
     <section className="w-full">
       <h2 className="text-body mb-6 text-2xl font-bold">Latest</h2>
-      <div className="w-full space-y-8">
+      <div className="post-list w-full space-y-4">
         {!displayPosts.length && (
           <p className="text-muted">
             No posts found. Configure Sanity and publish posts to see them here.

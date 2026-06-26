@@ -29,7 +29,8 @@ const Header = ({ posts }: HeaderProps) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  let headerClass = 'flex items-center w-full bg-[#0B1220] justify-between py-10'
+  let headerClass =
+    'flex items-center w-full justify-between py-10 border-b'
   if (siteMetadata.stickyNav) {
     headerClass += ' sticky top-0 z-50'
   }
@@ -53,10 +54,21 @@ const Header = ({ posts }: HeaderProps) => {
   }, [])
 
   return (
-    <header className={headerClass}>
+    <header
+      className={headerClass}
+      style={{
+        background: 'rgba(5,13,26,0.8)',
+        borderColor: 'var(--border)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
+    >
       <Link href="/" aria-label={siteMetadata.headerTitle}>
         <div className="flex items-center justify-between">
-          <div className="mr-3">
+          <div
+            className="mr-3 overflow-hidden rounded-lg"
+            style={{ boxShadow: '0 0 20px var(--azure-glow)' }}
+          >
             <Image src="/static/images/logo.png" alt="AzureFixes Logo" width={270} height={270} />
           </div>
         </div>
@@ -69,7 +81,12 @@ const Header = ({ posts }: HeaderProps) => {
               <Link
                 key={link.title}
                 href={link.href}
-                className="hover:text-accent text-body m-1 text-lg font-medium"
+                className="m-1 text-lg font-medium transition-colors"
+                style={{ color: 'var(--muted)' }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color = 'var(--muted)')
+                }
               >
                 {link.title}
               </Link>
@@ -143,7 +160,7 @@ const Header = ({ posts }: HeaderProps) => {
         ) : (
           <Link
             href="/login"
-            className="text-inverse rounded-md bg-[#38BDF8] px-4 py-2 text-sm font-medium hover:bg-[#60A5FA]"
+            className="btn-azure rounded-md px-4 py-2 text-sm font-medium"
           >
             Login
           </Link>

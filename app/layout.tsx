@@ -12,6 +12,8 @@ import siteMetadata from '@/data/siteMetadata'
 import { Providers } from './providers'
 import { Metadata } from 'next'
 import { SessionProvider } from 'next-auth/react'
+import { AmbientBackground } from '@/components/AmbientBackground'
+import { Particles } from '@/components/Particles'
 
 const space_grotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -91,16 +93,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fff" />
       <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000" />
       <link rel="alternate" type="application/rss+xml" href={`${basePath}/feed.xml`} />
-      <body className="text-body bg-[#0B1220] pl-[calc(100vw-100%)] antialiased">
-        <Providers>
-          <Analytics analyticsConfig={siteMetadata.analytics as AnalyticsConfig} />
-          <SectionContainer>
-            <SearchProvider searchConfig={siteMetadata.search as SearchConfig}>
-              <main className="mb-auto">{children}</main>
-            </SearchProvider>
-            <Footer />
-          </SectionContainer>
-        </Providers>
+      <body className="text-body pl-[calc(100vw-100%)] antialiased" style={{ background: 'var(--bg)' }}>
+        <AmbientBackground />
+        <Particles />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <Providers>
+            <Analytics analyticsConfig={siteMetadata.analytics as AnalyticsConfig} />
+            <SectionContainer>
+              <SearchProvider searchConfig={siteMetadata.search as SearchConfig}>
+                <main className="mb-auto">{children}</main>
+              </SearchProvider>
+              <Footer />
+            </SectionContainer>
+          </Providers>
+        </div>
       </body>
     </html>
   )
