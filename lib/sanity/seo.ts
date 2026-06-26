@@ -14,7 +14,8 @@ export function buildPostMetadata(post: Post, siteSettings?: SiteSettings | null
   const title = post.seoTitle || post.title
   const description = post.seoDescription || post.excerpt || siteDescription
   const canonical = formatCanonicalUrl(post.canonicalUrl)
-  const ogImage = post.coverImage ? urlForSocial(post.coverImage) : getDefaultOgImage(siteSettings)
+  const domain = process.env.NEXT_PUBLIC_SITE_URL || 'https://azuredailyblog.com'
+  const ogImage = `${domain}/api/og?title=${encodeURIComponent(title)}&author=${encodeURIComponent(post.author?.name || '')}`
 
   return {
     title: `${title} | ${siteTitle}`,
@@ -29,17 +30,15 @@ export function buildPostMetadata(post: Post, siteSettings?: SiteSettings | null
       description,
       type: 'article',
       url: canonical || undefined,
-      images: ogImage
-        ? [
-            {
-              url: ogImage,
-              width: 1200,
-              height: 630,
-              alt: title,
-              type: 'image/jpeg',
-            },
-          ]
-        : undefined,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: title,
+          type: 'image/png',
+        },
+      ],
       publishedTime: post.publishedAt,
       modifiedTime: post._updatedAt,
       authors: post.author?.name ? [post.author.name] : undefined,
@@ -49,7 +48,7 @@ export function buildPostMetadata(post: Post, siteSettings?: SiteSettings | null
       card: 'summary_large_image',
       title,
       description,
-      images: ogImage ? [ogImage] : undefined,
+      images: [ogImage],
       creator: post.author?.name,
     },
     robots: {

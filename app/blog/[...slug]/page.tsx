@@ -18,6 +18,11 @@ import { ViewTracker } from '@/components/ViewTracker'
 import { buildPostMetadata, generateBlogPostSchema } from '@/lib/sanity/seo'
 import { DraftModeBanner } from '@/components/DraftModeBanner'
 import { sanityConfigured, getPublicClient } from '@/lib/sanity/client'
+import { ScrollProgressBar } from '@/components/ScrollProgressBar'
+import { ReadingTimeBadge } from '@/components/ReadingTimeBadge'
+import { BackToTop } from '@/components/BackToTop'
+import { TableOfContents } from '@/components/TableOfContents'
+import { readingTime } from '@/lib/readingTime'
 
 // Revalidate every 24 hours
 export const revalidate = 86400
@@ -121,9 +126,11 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
   }
 
   const jsonLd = generateBlogPostSchema(post, settings)
+  const minutes = readingTime(post.markdownBody ?? post.body ?? [])
 
   return (
     <>
+      <ScrollProgressBar />
       {draft.isEnabled && <DraftModeBanner />}
       <ViewTracker slug={slug} />
       <script
@@ -131,80 +138,84 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <SectionContainer>
-        <div className={`xl:divide-y xl:divide-white/6 ${draft.isEnabled ? 'pt-24' : ''}`}>
-          <div className="divide-y divide-white/6 pb-8 xl:col-span-3 xl:pb-0">
-            <header className="py-6">
-              <div className="mb-6">
-                <Link
-                  href="/"
-                  className="inline-flex items-center gap-2 text-sm text-blue-400 transition-colors hover:text-blue-300"
-                  aria-label="Back to home page"
+        <div className={draft.isEnabled ? 'pt-24' : ''}>
+          {/* Post header */}
+          <header className="border-b border-white/6 py-6">
+            <div className="mb-6">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 text-sm text-blue-400 transition-colors hover:text-blue-300"
+                aria-label="Back to home page"
+              >
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  <svg
-                    className="h-4 w-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                  </svg>
-                  Back to Home
-                </Link>
-              </div>
-              <div className="space-y-1 text-center">
-                {draft.isEnabled && post.status === 'draft' && (
-                  <div className="mb-4 inline-block rounded-full border border-amber-500 bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-600">
-                    DRAFT
-                  </div>
-                )}
-                <dl className="space-y-10">
-                  <div>
-                    <dt className="sr-only">Published on</dt>
-                    <dd className="text-muted text-base leading-6 font-medium">
-                      {post.publishedAt ? (
-                        <time dateTime={post.publishedAt}>
-                          {new Date(post.publishedAt).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </time>
-                      ) : (
-                        'Date not set'
-                      )}
-                    </dd>
-                  </div>
-                </dl>
-                <div>
-                  <h1 className="text-body text-3xl leading-9 font-bold tracking-tight sm:text-4xl sm:leading-10 md:text-5xl md:leading-14">
-                    {post.title}
-                  </h1>
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Back to Home
+              </Link>
+            </div>
+            <div className="space-y-1 text-center">
+              {draft.isEnabled && post.status === 'draft' && (
+                <div className="mb-4 inline-block rounded-full border border-amber-500 bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-600">
+                  DRAFT
                 </div>
-                {post.tags && post.tags.length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-2 pt-4">
-                    {post.tags.map((tag) => (
-                      <span
-                        key={tag._id}
-                        className="mr-2 inline-block rounded-full bg-gray-200 px-3 py-1 text-sm font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                      >
-                        #{tag.title}
-                      </span>
-                    ))}
-                  </div>
-                )}
+              )}
+              <dl className="space-y-10">
+                <div>
+                  <dt className="sr-only">Published on</dt>
+                  <dd className="text-muted flex items-center justify-center gap-3 text-base leading-6 font-medium">
+                    {post.publishedAt ? (
+                      <time dateTime={post.publishedAt}>
+                        {new Date(post.publishedAt).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </time>
+                    ) : (
+                      <span>Date not set</span>
+                    )}
+                    <span aria-hidden="true">·</span>
+                    <ReadingTimeBadge minutes={minutes} />
+                  </dd>
+                </div>
+              </dl>
+              <div>
+                <h1 className="text-body text-3xl leading-9 font-bold tracking-tight sm:text-4xl sm:leading-10 md:text-5xl md:leading-14">
+                  {post.title}
+                </h1>
               </div>
-            </header>
+              {post.tags && post.tags.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-2 pt-4">
+                  {post.tags.map((tag) => (
+                    <span
+                      key={tag._id}
+                      className="mr-2 inline-block rounded-full bg-gray-200 px-3 py-1 text-sm font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                    >
+                      #{tag.title}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </header>
 
-            {post.coverImage && (
-              <div className="relative -mx-6 my-8 w-full md:mx-0">
-                <SanityCoverImage image={post.coverImage} alt={post.title} priority />
-              </div>
-            )}
+          {post.coverImage && (
+            <div className="relative -mx-6 my-8 w-full md:mx-0">
+              <SanityCoverImage image={post.coverImage} alt={post.title} priority />
+            </div>
+          )}
 
+          {/* Content + ToC sidebar */}
+          <div className="xl:grid xl:grid-cols-[1fr_240px] xl:gap-10">
             <div className="prose dark:prose-invert max-w-none py-6">
               {post.markdownBody ? (
                 <PostBody content={post.markdownBody} />
@@ -212,9 +223,16 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
                 <SanityPortableText value={post.body} />
               )}
             </div>
+
+            {/* Sticky ToC — desktop only */}
+            <aside className="hidden xl:block py-6">
+              <TableOfContents />
+            </aside>
           </div>
         </div>
       </SectionContainer>
+
+      <BackToTop />
     </>
   )
 }
