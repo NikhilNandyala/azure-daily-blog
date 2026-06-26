@@ -12,8 +12,11 @@ import siteMetadata from '@/data/siteMetadata'
 import { Providers } from './providers'
 import { Metadata } from 'next'
 import { SessionProvider } from 'next-auth/react'
+import dynamic from 'next/dynamic'
 import { AmbientBackground } from '@/components/AmbientBackground'
 import { Particles } from '@/components/Particles'
+
+const Background3D = dynamic(() => import('@/components/Background3D'), { ssr: false })
 
 const space_grotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -92,8 +95,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <meta name="msapplication-TileColor" content="#000000" />
       <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fff" />
       <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000" />
+      <meta name="theme-color" content="#050d1a" />
       <link rel="alternate" type="application/rss+xml" href={`${basePath}/feed.xml`} />
       <body className="text-body pl-[calc(100vw-100%)] antialiased" style={{ background: 'var(--bg)' }}>
+        <Background3D />
         <AmbientBackground />
         <Particles />
         <div style={{ position: 'relative', zIndex: 1 }}>
