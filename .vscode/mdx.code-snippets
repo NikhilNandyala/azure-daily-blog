@@ -1,0 +1,56 @@
+{
+  "New Blog Post": {
+    "prefix": "newpost",
+    "body": [
+      "---",
+      "title: '$1'",
+      "date: $CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE",
+      "excerpt: '$2'",
+      "tags: ['Azure', '$3']",
+      "postType: ${4|troubleshooting,tutorial,architecture,devops,news|}",
+      "difficulty: ${5|beginner,intermediate,advanced|}",
+      "featured: false",
+      "author: NVN",
+      "membersOnly: false",
+      "---",
+      "",
+      "## The Problem",
+      "",
+      "$6",
+      "",
+      "## Root Cause",
+      "",
+      "",
+      "",
+      "## The Fix",
+      "",
+      "```bash",
+      "$7",
+      "```",
+      "",
+      "## Result",
+      "",
+      ""
+    ],
+    "description": "New AzureFixes blog post"
+  },
+  "New Project": {
+    "prefix": "newproject",
+    "body": [
+      "---",
+      "title: '$1'",
+      "description: '$2'",
+      "techStack: ['$3']",
+      "githubUrl: '$4'",
+      "demoUrl: ''",
+      "status: ${5|active,wip,archived|}",
+      "featured: false",
+      "category: ${6|infrastructure,networking,devops,monitoring|}",
+      "date: $CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE",
+      "---",
+      "",
+      "$7"
+    ],
+    "description": "New AzureFixes project"
+  }
+}
