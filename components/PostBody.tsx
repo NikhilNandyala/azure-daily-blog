@@ -128,7 +128,7 @@ export function PostBody({ content }: PostBodyProps) {
 
             if (!className) {
               return (
-                <code className="rounded bg-gray-800 px-1.5 py-0.5 font-mono text-sm text-pink-400">
+                <code className="rounded bg-gray-800 px-1.5 py-0.5 font-mono text-sm text-[#ffd166]">
                   {children}
                 </code>
               )
@@ -156,18 +156,18 @@ export function PostBody({ content }: PostBodyProps) {
           },
 
           blockquote: ({ children }) => (
-            <blockquote className="my-6 border-l-4 border-blue-500 bg-gray-800/50 py-4 pl-6 text-gray-300 italic">
+            <blockquote className="my-6 border-l-4 border-[#c8860a] bg-gray-800/50 py-4 pl-6 text-[#b8a882] italic">
               {children}
             </blockquote>
           ),
 
           ul: ({ children }) => (
-            <ul className="mb-6 ml-6 list-disc space-y-2 text-lg text-gray-300">{children}</ul>
+            <ul className="mb-6 ml-6 list-disc space-y-2 text-lg text-[#b8a882]">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className="mb-6 ml-6 list-decimal space-y-2 text-lg text-gray-300">{children}</ol>
+            <ol className="mb-6 ml-6 list-decimal space-y-2 text-lg text-[#b8a882]">{children}</ol>
           ),
-          li: ({ children }) => <li className="pl-2 text-gray-300">{children}</li>,
+          li: ({ children }) => <li className="pl-2 text-[#b8a882]">{children}</li>,
 
           table: ({ children }) => (
             <div className="my-6 overflow-x-auto">
@@ -178,15 +178,15 @@ export function PostBody({ content }: PostBodyProps) {
           ),
           thead: ({ children }) => <thead className="bg-gray-800">{children}</thead>,
           th: ({ children }) => (
-            <th className="border border-gray-700 px-4 py-2 font-bold text-white">{children}</th>
+            <th className="border border-gray-700 px-4 py-2 font-bold text-[#ffeaa0]">{children}</th>
           ),
           td: ({ children }) => (
-            <td className="border border-gray-700 px-4 py-2 text-gray-300">{children}</td>
+            <td className="border border-gray-700 px-4 py-2 text-[#b8a882]">{children}</td>
           ),
 
           hr: () => <hr className="my-8 border-gray-700" />,
 
-          strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+          strong: ({ children }) => <strong className="font-bold text-[#ffeaa0]">{children}</strong>,
           em: ({ children }) => <em className="italic">{children}</em>,
         }}
       >
