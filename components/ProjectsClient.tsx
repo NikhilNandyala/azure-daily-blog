@@ -142,7 +142,7 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
             {statusFilter !== 'all' && (
               <button
                 onClick={() => setStatusFilter('all')}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-400"
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-[#d4a843]" style={{ background: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.35)' }}
               >
                 Status: {statusFilter}
                 <svg
@@ -159,7 +159,7 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
             {categoryFilter !== 'all' && (
               <button
                 onClick={() => setCategoryFilter('all')}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-400"
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-[#d4a843]" style={{ background: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.35)' }}
               >
                 {getCategoryName(categoryFilter)}
                 <svg
@@ -176,7 +176,7 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-400"
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-[#d4a843]" style={{ background: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.35)' }}
               >
                 &quot;{searchQuery}&quot;
                 <svg
@@ -217,7 +217,7 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
               setCategoryFilter('all')
               setSearchQuery('')
             }}
-            className="mt-4 text-sm text-blue-400 hover:text-blue-300"
+            className="mt-4 text-sm text-[#f0a500] hover:text-[#ffd166]"
           >
             Clear all filters
           </button>

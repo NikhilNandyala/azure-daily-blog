@@ -144,7 +144,8 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
             <div className="mb-6">
               <Link
                 href="/blog"
-                className="inline-flex items-center gap-2 text-sm text-blue-400 transition-colors hover:text-blue-300"
+                className="inline-flex items-center gap-2 text-sm transition-colors hover:text-[#ffd166]"
+                style={{ color: '#8a7a5a' }}
                 aria-label="Back to blog"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -190,7 +191,8 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
                   {post.tags.map((tag) => (
                     <span
                       key={tag._id}
-                      className="mr-2 inline-block rounded-full bg-gray-200 px-3 py-1 text-sm font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      className="mr-2 inline-block rounded-full px-3 py-1 text-sm font-semibold"
+                      style={{ background: 'rgba(200,134,10,0.10)', border: '1px solid rgba(200,134,10,0.35)', color: '#d4a843' }}
                     >
                       #{tag.title}
                     </span>

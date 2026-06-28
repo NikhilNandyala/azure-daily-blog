@@ -39,34 +39,34 @@ export function PostBody({ content }: PostBodyProps) {
   }
 
   return (
-    <article className="prose prose-lg dark:prose-invert prose-headings:scroll-mt-20 prose-headings:font-bold prose-h1:text-4xl prose-h1:text-white prose-h2:text-3xl prose-h2:text-white prose-h3:text-2xl prose-h3:text-white prose-h4:text-xl prose-h4:text-white prose-p:text-gray-300 prose-p:leading-relaxed prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline prose-strong:text-white prose-code:text-pink-400 prose-code:bg-gray-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm prose-code:before:content-[''] prose-code:after:content-[''] prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-700 prose-blockquote:border-l-4 prose-blockquote:border-blue-500 prose-blockquote:bg-gray-800/50 prose-blockquote:text-gray-300 prose-blockquote:italic prose-img:rounded-lg prose-img:shadow-lg prose-table:border-collapse prose-th:bg-gray-800 prose-th:text-white prose-th:border prose-th:border-gray-700 prose-td:border prose-td:border-gray-700 prose-td:text-gray-300 max-w-none">
+    <article className="prose prose-lg dark:prose-invert prose-headings:scroll-mt-20 prose-headings:font-bold prose-h1:text-4xl prose-h1:text-[#ffeaa0] prose-h2:text-3xl prose-h2:text-[#ffeaa0] prose-h3:text-2xl prose-h3:text-[#ffeaa0] prose-h4:text-xl prose-h4:text-[#ffeaa0] prose-p:text-[#b8a882] prose-p:leading-relaxed prose-a:text-[#f0a500] prose-a:no-underline hover:prose-a:underline prose-strong:text-[#ffeaa0] prose-code:text-[#ffd166] prose-code:bg-gray-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:font-mono prose-code:text-sm prose-code:before:content-[''] prose-code:after:content-[''] prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-700 prose-blockquote:border-l-4 prose-blockquote:border-[#c8860a] prose-blockquote:bg-gray-800/50 prose-blockquote:text-[#b8a882] prose-blockquote:italic prose-img:rounded-lg prose-img:shadow-lg prose-table:border-collapse prose-th:bg-gray-800 prose-th:text-[#ffeaa0] prose-th:border prose-th:border-gray-700 prose-td:border prose-td:border-gray-700 prose-td:text-[#b8a882] max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight, rehypeRaw, rehypeSlug]}
         components={{
           h1: ({ children, id }) => (
-            <h1 id={id} className="mt-12 mb-6 text-4xl font-extrabold text-white">
+            <h1 id={id} className="mt-12 mb-6 text-4xl font-extrabold text-[#ffeaa0]">
               {children}
             </h1>
           ),
           h2: ({ children, id }) => (
-            <h2 id={id} className="mt-10 mb-4 text-3xl font-bold text-white">
+            <h2 id={id} className="mt-10 mb-4 text-3xl font-bold text-[#ffeaa0]">
               {children}
             </h2>
           ),
           h3: ({ children, id }) => (
-            <h3 id={id} className="mt-8 mb-3 text-2xl font-bold text-white">
+            <h3 id={id} className="mt-8 mb-3 text-2xl font-bold text-[#ffeaa0]">
               {children}
             </h3>
           ),
           h4: ({ children, id }) => (
-            <h4 id={id} className="mt-6 mb-3 text-xl font-bold text-white">
+            <h4 id={id} className="mt-6 mb-3 text-xl font-bold text-[#ffeaa0]">
               {children}
             </h4>
           ),
 
           p: ({ children }) => (
-            <p className="mb-6 text-lg leading-relaxed text-gray-300">{children}</p>
+            <p className="mb-6 text-lg leading-relaxed text-[#b8a882]">{children}</p>
           ),
 
           a: ({ href, children }) => {
@@ -77,14 +77,14 @@ export function PostBody({ content }: PostBodyProps) {
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline"
+                  className="text-[#f0a500] hover:underline"
                 >
                   {children}
                 </a>
               )
             }
             return (
-              <Link href={href || '#'} className="text-blue-400 hover:underline">
+              <Link href={href || '#'} className="text-[#f0a500] hover:underline">
                 {children}
               </Link>
             )

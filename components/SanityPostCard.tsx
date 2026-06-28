@@ -58,10 +58,9 @@ const SanityPostCard = ({ post, isAuthenticated = false }: SanityPostCardProps) 
                   href={targetHref}
                   className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold"
                   style={{
-                    background:
-                      'linear-gradient(135deg, rgba(0,120,212,0.08), rgba(0,188,242,0.04))',
-                    border: '1px solid rgba(0,120,212,0.3)',
-                    color: 'var(--azure-light)',
+                    background: 'rgba(200,134,10,0.10)',
+                    border: '1px solid rgba(200,134,10,0.35)',
+                    color: '#d4a843',
                   }}
                 >
                   <svg
@@ -87,7 +86,7 @@ const SanityPostCard = ({ post, isAuthenticated = false }: SanityPostCardProps) 
           <h3 className="mb-3 line-clamp-2 text-xl leading-tight font-bold break-words">
             <Link
               href={targetHref}
-              className={`transition-colors hover:text-[var(--azure-light)] ${
+              className={`transition-colors hover:text-[var(--link)] ${
                 post.featured ? 'gradient-text' : 'text-body'
               }`}
             >
@@ -119,7 +118,7 @@ const SanityPostCard = ({ post, isAuthenticated = false }: SanityPostCardProps) 
             <Link
               href={targetHref}
               className="group/rm inline-flex items-center gap-1 transition-colors"
-              style={{ color: 'var(--azure-light)' }}
+              style={{ color: 'var(--link)' }}
             >
               Read more{' '}
               <span className="inline-block transition-transform group-hover/rm:translate-x-1">

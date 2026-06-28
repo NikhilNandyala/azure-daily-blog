@@ -11,7 +11,8 @@ export function TechChip({ tech, size = 'sm' }: TechChipProps) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-md border border-blue-500/30 bg-blue-500/10 font-medium text-blue-400 ${sizeClasses}`}
+      className={`inline-flex items-center rounded-md font-medium ${sizeClasses}`}
+      style={{ border: '1px solid rgba(200,134,10,0.35)', background: 'rgba(200,134,10,0.08)', color: '#d4a843' }}
     >
       {tech}
     </span>

@@ -49,12 +49,12 @@ export default async function Page() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            background: 'rgba(0,188,242,0.1)',
-            border: '1px solid rgba(0,188,242,0.25)',
+            background: 'rgba(200,134,10,0.10)',
+            border: '1px solid rgba(200,134,10,0.30)',
             borderRadius: 20,
             padding: '4px 12px',
             fontSize: 11,
-            color: 'var(--cyan)',
+            color: '#f0a500',
             marginBottom: 14,
           }}
         >
@@ -62,7 +62,7 @@ export default async function Page() {
             style={{
               width: 6,
               height: 6,
-              background: 'var(--cyan)',
+              background: '#f0a500',
               borderRadius: '50%',
               animation: 'pulse-dot 2s ease-in-out infinite',
             }}

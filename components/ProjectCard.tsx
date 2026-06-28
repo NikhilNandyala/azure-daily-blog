@@ -68,7 +68,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
         {/* Title */}
         <Link href={projectUrl}>
-          <h3 className="mb-2 text-xl font-bold text-white transition-colors group-hover:text-blue-400">
+          <h3 className="mb-2 text-xl font-bold text-[#ffeaa0] transition-colors group-hover:text-[#f0a500]">
             {project.title}
           </h3>
         </Link>
@@ -92,7 +92,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
         <div className="flex items-center justify-between border-t border-gray-800 pt-4">
           <Link
             href={projectUrl}
-            className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 transition-colors hover:text-blue-300"
+            className="inline-flex items-center gap-2 text-sm font-medium text-[#f0a500] transition-colors hover:text-[#ffd166]"
           >
             View project
             <svg
@@ -115,7 +115,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
                 href={project.liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-500 transition-colors hover:text-blue-400"
+                className="text-[#6a5a3a] transition-colors hover:text-[#f0a500]"
                 aria-label="Live demo"
               >
                 <svg
@@ -138,7 +138,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
                 href={project.repoUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-500 transition-colors hover:text-blue-400"
+                className="text-[#6a5a3a] transition-colors hover:text-[#f0a500]"
                 aria-label="Repository"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">

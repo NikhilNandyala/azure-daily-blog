@@ -62,11 +62,13 @@ export function TableOfContents() {
                 e.preventDefault()
                 document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
               }}
-              className={`block truncate py-0.5 transition-colors ${
-                activeId === id
-                  ? 'font-medium text-blue-400'
-                  : 'text-muted hover:text-blue-400'
-              }`}
+              className="block truncate py-0.5 transition-colors"
+              style={{
+                color: activeId === id ? '#f0a500' : 'var(--muted)',
+                borderLeft: activeId === id ? '2px solid #f0a500' : '2px solid transparent',
+                paddingLeft: '6px',
+                fontWeight: activeId === id ? 600 : 400,
+              }}
             >
               {text}
             </a>

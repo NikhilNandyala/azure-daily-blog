@@ -89,7 +89,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       <div className="mb-6">
         <Link
           href="/projects"
-          className="inline-flex items-center gap-2 text-sm text-blue-400 transition-colors hover:text-blue-300"
+          className="inline-flex items-center gap-2 text-sm text-[#8a7a5a] transition-colors hover:text-[#f0a500]"
           aria-label="Back to projects"
         >
           <svg
@@ -122,7 +122,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
 
       {/* Header */}
       <header className="mb-8">
-        <h1 className="mb-4 text-4xl font-bold text-white md:text-5xl">{project.title}</h1>
+        <h1 className="mb-4 text-4xl font-bold text-[#ffeaa0] md:text-5xl">{project.title}</h1>
 
         {/* Status and Category */}
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -145,7 +145,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                 href={project.liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-md border border-blue-500/50 bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-400 transition-colors hover:border-blue-500 hover:bg-blue-500/20"
+                className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-[#d4a843] transition-colors" style={{ border: '1px solid rgba(200,134,10,0.4)', background: 'rgba(200,134,10,0.08)' }}
               >
                 <svg
                   className="h-4 w-4"
@@ -201,7 +201,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       {/* Tech Stack */}
       {project.techStack && project.techStack.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-4 text-xl font-semibold text-white">Tech Stack</h2>
+          <h2 className="mb-4 text-xl font-semibold text-[#ffeaa0]">Tech Stack</h2>
           <div className="flex flex-wrap gap-2">
             {project.techStack.map((tech) => (
               <TechChip key={tech} tech={tech} />
@@ -220,7 +220,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       {/* Gallery */}
       {project.gallery && project.gallery.length > 0 && (
         <section className="mb-12">
-          <h2 className="mb-6 text-xl font-semibold text-white">Gallery</h2>
+          <h2 className="mb-6 text-xl font-semibold text-[#ffeaa0]">Gallery</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {project.gallery.map((image, index) => (
               <div key={index} className="relative aspect-video overflow-hidden rounded-lg">
@@ -240,7 +240,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       <div className="mt-12 border-t border-gray-800 pt-8">
         <Link
           href="/projects"
-          className="inline-flex items-center gap-2 text-sm text-blue-400 transition-colors hover:text-blue-300"
+          className="inline-flex items-center gap-2 text-sm text-[#8a7a5a] transition-colors hover:text-[#f0a500]"
           aria-label="Back to projects"
         >
           <svg
