@@ -21,7 +21,7 @@ interface Post {
 }
 
 interface HeaderProps {
-  posts: Post[]
+  posts?: Post[]
 }
 
 const Header = ({ posts }: HeaderProps) => {
@@ -76,7 +76,6 @@ const Header = ({ posts }: HeaderProps) => {
       <div className="flex items-center space-x-4 leading-5 sm:space-x-6">
         <div className="no-scrollbar hidden max-w-40 items-center gap-x-4 overflow-x-auto sm:flex md:max-w-72 lg:max-w-96">
           {headerNavLinks
-            .filter((link) => link.href !== '/')
             .map((link) => (
               <Link
                 key={link.title}
@@ -92,7 +91,7 @@ const Header = ({ posts }: HeaderProps) => {
               </Link>
             ))}
         </div>
-        <SearchButton posts={posts} />
+        <SearchButton posts={posts ?? []} />
         {status === 'loading' ? (
           <div className="h-8 w-20 animate-pulse rounded bg-[#374151]"></div>
         ) : session ? (

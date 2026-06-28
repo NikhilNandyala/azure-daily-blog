@@ -29,6 +29,17 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
 
   return (
     <SectionContainer>
+      <nav aria-label="Breadcrumb" className="mb-4 pt-4">
+        <ol className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
+          <li>
+            <Link href="/" style={{ color: 'var(--muted)' }} className="transition-colors hover:text-white">
+              Home
+            </Link>
+          </li>
+          <li aria-hidden="true" style={{ color: 'var(--border-bright)' }}>/</li>
+          <li style={{ color: 'var(--text)' }} aria-current="page">Blog</li>
+        </ol>
+      </nav>
       <div className="space-y-2 pt-6 pb-8 md:space-y-5">
         <PageTitle>Blog</PageTitle>
         <p className="text-muted text-lg leading-7">

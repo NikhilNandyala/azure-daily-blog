@@ -4,7 +4,6 @@ import { getAllPublishedPosts, getTagsWithCounts } from '@/lib/sanity/queries'
 import SanityLatestPosts from '@/components/SanityLatestPosts'
 import SanityPopularTags from '@/components/SanityPopularTags'
 import MostVisited from '@/components/MostVisited'
-import Header from '@/components/Header'
 
 // Revalidate every hour (3600 seconds)
 export const revalidate = 3600
@@ -19,8 +18,6 @@ export default async function Page() {
 
   return (
     <>
-      <Header posts={[]} />
-
       {/* Hero section */}
       <div
         style={{

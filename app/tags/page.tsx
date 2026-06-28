@@ -12,6 +12,17 @@ export default async function Page() {
 
   return (
     <>
+      <nav aria-label="Breadcrumb" className="mb-4 pt-4">
+        <ol className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
+          <li>
+            <Link href="/" style={{ color: 'var(--muted)' }} className="transition-colors hover:text-white">
+              Home
+            </Link>
+          </li>
+          <li aria-hidden="true" style={{ color: 'var(--border-bright)' }}>/</li>
+          <li style={{ color: 'var(--text)' }} aria-current="page">Tags</li>
+        </ol>
+      </nav>
       <div className="flex flex-col items-start justify-start divide-y divide-white/6 md:mt-24 md:flex-row md:items-center md:justify-center md:space-x-6 md:divide-y-0">
         <div className="space-x-2 pt-6 pb-8 md:space-y-5">
           <h1 className="text-body text-3xl leading-9 font-extrabold tracking-tight sm:text-4xl sm:leading-10 md:border-r-2 md:px-6 md:text-6xl md:leading-14">

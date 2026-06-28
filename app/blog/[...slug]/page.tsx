@@ -143,22 +143,14 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
           <header className="border-b border-white/6 py-6">
             <div className="mb-6">
               <Link
-                href="/"
+                href="/blog"
                 className="inline-flex items-center gap-2 text-sm text-blue-400 transition-colors hover:text-blue-300"
-                aria-label="Back to home page"
+                aria-label="Back to blog"
               >
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Back to Home
+                Back to blog
               </Link>
             </div>
             <div className="space-y-1 text-center">
