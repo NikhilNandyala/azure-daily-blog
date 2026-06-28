@@ -1,28 +1,19 @@
 import Link from '@/components/Link'
 import { genPageMetadata } from 'app/seo'
-import {
-  getAllProjects,
-  getFeaturedProjects,
-  getProjectCategories,
-} from '@/lib/sanity/projectQueries'
+import { getAllProjects, getFeaturedProjects, getAllProjectCategories } from '@/lib/content'
 import { ProjectsClient } from '@/components/ProjectsClient'
 
 export const metadata = genPageMetadata({
   title: 'Projects',
-  description:
-    'Explore my portfolio of projects, from web applications to infrastructure and tools.',
+  description: 'Explore my portfolio of projects, from web applications to infrastructure and tools.',
 })
 
-// ISR - Revalidate every 1 hour
 export const revalidate = 3600
 
-export default async function Projects() {
-  // Fetch all projects and featured projects
-  const [allProjects, featuredProjects, categories] = await Promise.all([
-    getAllProjects(),
-    getFeaturedProjects(6),
-    getProjectCategories(),
-  ])
+export default function Projects() {
+  const allProjects = getAllProjects()
+  const featuredProjects = getFeaturedProjects(6)
+  const categories = getAllProjectCategories()
 
   return (
     <>
@@ -30,9 +21,7 @@ export default async function Projects() {
         <nav aria-label="Breadcrumb" className="mb-4 pt-6">
           <ol className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
             <li>
-              <Link href="/" style={{ color: 'var(--muted)' }} className="transition-colors hover:text-white">
-                Home
-              </Link>
+              <Link href="/" style={{ color: 'var(--muted)' }} className="transition-colors hover:text-white">Home</Link>
             </li>
             <li aria-hidden="true" style={{ color: 'var(--border-bright)' }}>/</li>
             <li style={{ color: 'var(--text)' }} aria-current="page">Projects</li>

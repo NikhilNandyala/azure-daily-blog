@@ -1,0 +1,38 @@
+---
+title: 'Azure Policy Pack'
+description: 'A curated library of Azure Policy definitions and initiatives for enforcing tagging standards, network controls, and security baselines across large enterprise subscriptions.'
+techStack: ['Azure Policy', 'Bicep', 'PowerShell', 'Azure DevOps']
+githubUrl: 'https://github.com/NikhilNandyala/azure-policy-pack'
+demoUrl: ''
+status: active
+featured: true
+category: devops
+date: '2025-06-15'
+---
+
+## Overview
+
+A production-ready library of Azure Policy definitions that enforce organisational standards across multiple subscriptions and management groups.
+
+## Policy Categories
+
+- **Tagging**: Required tags (Environment, Owner, CostCenter) on all resources
+- **Networking**: Deny public IPs on VMs, require NSG on subnets
+- **Security**: Enforce Defender for Cloud on all subscriptions, require diagnostic settings
+- **Compute**: Allowed VM SKUs per environment, require managed disks only
+
+## Deployment
+
+Policies are deployed via Bicep + Azure DevOps pipeline:
+
+```bash
+az deployment mg create \
+  --management-group-id "your-mg-id" \
+  --location eastus \
+  --template-file ./bicep/policy-initiative.bicep \
+  --parameters @params/prod.json
+```
+
+## Compliance Reporting
+
+Included PowerShell runbook generates weekly compliance reports across all subscriptions and sends summaries to a Teams webhook.

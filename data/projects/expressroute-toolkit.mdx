@@ -1,0 +1,35 @@
+---
+title: 'ExpressRoute HA Toolkit'
+description: 'Terraform modules and runbooks for designing, deploying, and validating high-availability ExpressRoute circuits with Global Reach and redundant gateways.'
+techStack: ['Terraform', 'Azure', 'ExpressRoute', 'PowerShell', 'ARM']
+githubUrl: 'https://github.com/NikhilNandyala/expressroute-ha-toolkit'
+demoUrl: ''
+status: active
+featured: true
+category: networking
+date: '2025-07-01'
+---
+
+## Overview
+
+A set of Terraform modules and operational runbooks covering the full lifecycle of enterprise ExpressRoute circuits—from initial design through failure-mode testing.
+
+## Key Features
+
+- Dual-circuit, dual-gateway topology with automatic failover
+- Global Reach peering configuration
+- BGP route-filter automation
+- Azure Monitor alerts for gateway CPU and BFD session state
+- Weekly connectivity health checks via PowerShell runbooks
+
+## Architecture
+
+The toolkit provisions two ExpressRoute circuits in different peering locations, each connected to a pair of Ultra Performance gateways in the hub VNet. Route filters restrict BGP advertisements to only necessary prefixes.
+
+## Usage
+
+```bash
+terraform init
+terraform plan -var-file="prod.tfvars"
+terraform apply
+```

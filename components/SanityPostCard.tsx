@@ -1,17 +1,17 @@
 import Link from '@/components/Link'
-import { SanityImage } from '@/components/SanityImage'
-import type { PostListItem } from '@/lib/sanity/types'
+import type { Blog } from 'contentlayer/generated'
+import { slug as slugify } from 'github-slugger'
 
 interface SanityPostCardProps {
-  post: PostListItem
+  post: Blog
   isAuthenticated?: boolean
 }
 
 const SanityPostCard = ({ post, isAuthenticated = false }: SanityPostCardProps) => {
   const targetHref =
     post.membersOnly && !isAuthenticated
-      ? `/login?callbackUrl=${encodeURIComponent(`/blog/${post.slug.current}`)}`
-      : `/blog/${post.slug.current}`
+      ? `/login?callbackUrl=${encodeURIComponent(`/blog/${post.slug}`)}`
+      : `/blog/${post.slug}`
 
   const cardClass = [
     'post-card card-accent group relative min-w-0',
@@ -23,33 +23,20 @@ const SanityPostCard = ({ post, isAuthenticated = false }: SanityPostCardProps) 
   return (
     <article className={cardClass}>
       <div className="flex flex-col gap-6 md:flex-row">
-        {/* Cover Image */}
-        {post.coverImage && (
-          <div className="relative h-40 w-full flex-shrink-0 overflow-hidden rounded-lg transition-transform duration-300 group-hover:scale-105 md:h-32 md:w-40">
-            <SanityImage
-              image={post.coverImage}
-              alt={post.title}
-              width={160}
-              height={128}
-              className="rounded-lg object-cover"
-            />
-          </div>
-        )}
-
         {/* Content */}
         <div className="flex flex-1 flex-col justify-between">
           {/* Tags and Badges */}
           {(post.tags && post.tags.length > 0) || post.membersOnly ? (
             <div className="mb-3 flex flex-wrap items-center gap-2">
               {post.tags?.map((tag) => {
-                const isAzureTag = tag.title.toLowerCase().includes('azure')
+                const isAzureTag = tag.toLowerCase().includes('azure')
                 return (
                   <Link
-                    key={tag._id}
-                    href={`/tags/${tag.slug.current}`}
+                    key={tag}
+                    href={`/tags/${slugify(tag)}`}
                     className={`tag-pill${isAzureTag ? ' tag-pill--azure' : ''}`}
                   >
-                    {tag.title}
+                    {tag}
                   </Link>
                 )
               })}
@@ -95,18 +82,18 @@ const SanityPostCard = ({ post, isAuthenticated = false }: SanityPostCardProps) 
           </h3>
 
           {/* Excerpt */}
-          {post.excerpt && (
+          {post.summary && (
             <p className="mb-4 line-clamp-2 leading-relaxed" style={{ color: 'var(--muted)' }}>
-              {post.excerpt}
+              {post.summary}
             </p>
           )}
 
           {/* Meta */}
           <div className="flex items-center text-sm" style={{ color: 'var(--muted)' }}>
-            {post.publishedAt && (
+            {post.date && (
               <>
-                <time dateTime={post.publishedAt}>
-                  {new Date(post.publishedAt).toLocaleDateString('en-US', {
+                <time dateTime={post.date}>
+                  {new Date(post.date).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',

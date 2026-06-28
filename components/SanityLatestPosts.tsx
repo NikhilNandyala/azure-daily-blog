@@ -1,9 +1,9 @@
 import SanityPostCard from '@/components/SanityPostCard'
 import Link from '@/components/Link'
-import type { PostListItem } from '@/lib/sanity/types'
+import type { Blog } from 'contentlayer/generated'
 
 interface SanityLatestPostsProps {
-  posts: PostListItem[]
+  posts: Blog[]
   isAuthenticated?: boolean
   limit?: number
 }
@@ -21,11 +21,11 @@ export default function SanityLatestPosts({
       <div className="post-list w-full space-y-4">
         {!displayPosts.length && (
           <p className="text-muted">
-            No posts found. Configure Sanity and publish posts to see them here.
+            No posts found. Create MDX files in data/blog/ to see them here.
           </p>
         )}
         {displayPosts.map((post) => (
-          <SanityPostCard key={post._id} post={post} isAuthenticated={isAuthenticated} />
+          <SanityPostCard key={post.slug} post={post} isAuthenticated={isAuthenticated} />
         ))}
       </div>
       {posts.length > limit && (

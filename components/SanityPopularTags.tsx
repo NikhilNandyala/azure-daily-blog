@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import SidebarCard from '@/components/SidebarCard'
-import type { Tag } from '@/lib/sanity/types'
+import type { TagInfo } from '@/lib/content'
 
 interface SanityPopularTagsProps {
-  tags: Array<{ tag: Tag; count: number }>
+  tags: TagInfo[]
   limit?: number
 }
 
@@ -21,15 +21,15 @@ export default function SanityPopularTags({ tags, limit = 10 }: SanityPopularTag
   return (
     <SidebarCard title="Popular Tags">
       <div className="flex w-full min-w-0 flex-wrap gap-2 overflow-hidden">
-        {displayTags.map(({ tag, count }) => {
-          const isAzureTag = tag.title.toLowerCase().includes('azure')
+        {displayTags.map(({ name, slug, count }) => {
+          const isAzureTag = name.toLowerCase().includes('azure')
           return (
             <Link
-              key={tag._id}
-              href={`/tags/${tag.slug.current}`}
+              key={slug}
+              href={`/tags/${slug}`}
               className={`tag-pill${isAzureTag ? ' tag-pill--azure' : ''}`}
             >
-              {tag.title} ({count})
+              {name} ({count})
             </Link>
           )
         })}

@@ -1,0 +1,92 @@
+import { ReactNode } from 'react'
+
+type Props = { children?: ReactNode; className?: string; href?: string; [key: string]: unknown }
+
+export const mdxComponents = {
+  h1: ({ children }: Props) => (
+    <h1 style={{ color: '#ffeaa0', fontWeight: 800, fontSize: '1.875rem', lineHeight: 1.3, margin: '2rem 0 1rem' }}>
+      {children}
+    </h1>
+  ),
+  h2: ({ children }: Props) => (
+    <h2 style={{ color: '#ffeaa0', fontWeight: 700, fontSize: '1.375rem', lineHeight: 1.35, margin: '2rem 0 .75rem', paddingBottom: '.5rem', borderBottom: '1px solid rgba(200,134,10,0.2)' }}>
+      {children}
+    </h2>
+  ),
+  h3: ({ children }: Props) => (
+    <h3 style={{ color: '#d4a843', fontWeight: 600, fontSize: '1.1rem', margin: '1.5rem 0 .5rem' }}>
+      {children}
+    </h3>
+  ),
+  p: ({ children }: Props) => (
+    <p style={{ color: '#b8a882', lineHeight: 1.8, marginBottom: '1rem', fontSize: '0.95rem' }}>
+      {children}
+    </p>
+  ),
+  a: ({ children, href }: Props) => (
+    <a
+      href={href as string}
+      style={{ color: '#f0a500', textDecoration: 'underline', textDecorationColor: 'rgba(240,165,0,0.4)' }}
+      target={typeof href === 'string' && href.startsWith('http') ? '_blank' : undefined}
+      rel={typeof href === 'string' && href.startsWith('http') ? 'noopener noreferrer' : undefined}
+    >
+      {children}
+    </a>
+  ),
+  code: ({ children, className }: Props) => {
+    if (!className) {
+      return (
+        <code style={{ background: 'rgba(200,134,10,0.1)', border: '0.5px solid rgba(200,134,10,0.3)', color: '#ffd166', borderRadius: 4, padding: '2px 6px', fontSize: '0.875em', fontFamily: 'monospace' }}>
+          {children}
+        </code>
+      )
+    }
+    return <code className={className as string}>{children}</code>
+  },
+  pre: ({ children }: Props) => (
+    <pre style={{ background: 'rgba(10,22,40,0.98)', border: '1px solid rgba(0,120,212,0.2)', borderRadius: 10, padding: '1.25rem', overflow: 'auto', marginBottom: '1.5rem', fontSize: '0.875rem', lineHeight: 1.7, boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>
+      {children}
+    </pre>
+  ),
+  blockquote: ({ children }: Props) => (
+    <blockquote style={{ borderLeft: '3px solid #f0a500', paddingLeft: '1rem', margin: '1.5rem 0', color: '#8a7a5a', fontStyle: 'italic' }}>
+      {children}
+    </blockquote>
+  ),
+  ul: ({ children }: Props) => (
+    <ul style={{ color: '#b8a882', paddingLeft: '1.5rem', marginBottom: '1rem', lineHeight: 1.8 }}>
+      {children}
+    </ul>
+  ),
+  ol: ({ children }: Props) => (
+    <ol style={{ color: '#b8a882', paddingLeft: '1.5rem', marginBottom: '1rem', lineHeight: 1.8 }}>
+      {children}
+    </ol>
+  ),
+  li: ({ children }: Props) => (
+    <li style={{ marginBottom: '.35rem' }}>{children}</li>
+  ),
+  hr: () => (
+    <hr style={{ border: 'none', borderTop: '1px solid rgba(200,134,10,0.2)', margin: '2rem 0' }} />
+  ),
+  strong: ({ children }: Props) => (
+    <strong style={{ color: '#ffeaa0', fontWeight: 600 }}>{children}</strong>
+  ),
+  table: ({ children }: Props) => (
+    <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+        {children}
+      </table>
+    </div>
+  ),
+  th: ({ children }: Props) => (
+    <th style={{ color: '#ffeaa0', fontWeight: 600, padding: '8px 12px', borderBottom: '1px solid rgba(200,134,10,0.3)', textAlign: 'left', background: 'rgba(200,134,10,0.06)' }}>
+      {children}
+    </th>
+  ),
+  td: ({ children }: Props) => (
+    <td style={{ color: '#b8a882', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+      {children}
+    </td>
+  ),
+}

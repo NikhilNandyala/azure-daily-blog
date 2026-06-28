@@ -1,12 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import {
-  getPostsByTag,
-  getPostsByTagCount,
-  getAllTags,
-  getTagsWithCounts,
-} from '@/lib/sanity/queries'
+import { getPostsByTag, getAllTags } from '@/lib/content'
 import SanityPostCard from '@/components/SanityPostCard'
 import PageTitle from '@/components/PageTitle'
 import SectionContainer from '@/components/SectionContainer'
@@ -15,17 +10,16 @@ import Link from '@/components/Link'
 const POSTS_PER_PAGE = 10
 
 export const generateStaticParams = async () => {
-  const tagsWithCounts = await getTagsWithCounts()
-  return tagsWithCounts.flatMap(({ tag, count }) => {
+  const tags = getAllTags()
+  return tags.flatMap(({ slug, count }) => {
     const totalPages = Math.max(1, Math.ceil(count / POSTS_PER_PAGE))
     return Array.from({ length: totalPages }, (_, i) => ({
-      tag: tag.slug.current,
+      tag: slug,
       page: (i + 1).toString(),
     }))
   })
 }
 
-// Revalidate every hour
 export const revalidate = 3600
 
 export default async function TagPagePaginated(props: {
@@ -35,28 +29,23 @@ export default async function TagPagePaginated(props: {
   const tagSlug = decodeURI(params.tag)
   const pageNumber = parseInt(params.page)
 
-  if (isNaN(pageNumber) || pageNumber <= 0) {
-    return notFound()
-  }
+  if (isNaN(pageNumber) || pageNumber <= 0) return notFound()
 
   const session = await getServerSession(authOptions)
   const isAuthenticated = Boolean(session)
 
-  // Fetch posts by tag from Sanity
-  const offset = (pageNumber - 1) * POSTS_PER_PAGE
-  const posts = await getPostsByTag(tagSlug, POSTS_PER_PAGE, offset)
-  const totalCount = await getPostsByTagCount(tagSlug)
+  const allTagPosts = getPostsByTag(tagSlug)
+  const totalCount = allTagPosts.length
   const totalPages = Math.ceil(totalCount / POSTS_PER_PAGE)
 
-  // Return 404 for invalid page numbers
-  if (pageNumber > totalPages) {
-    return notFound()
-  }
+  if (pageNumber > totalPages) return notFound()
 
-  // Find the tag info for display
-  const allTags = await getAllTags()
-  const currentTag = allTags.find((t) => t.slug.current === tagSlug)
-  const title = currentTag?.title || tagSlug
+  const offset = (pageNumber - 1) * POSTS_PER_PAGE
+  const posts = allTagPosts.slice(offset, offset + POSTS_PER_PAGE)
+
+  const allTags = getAllTags()
+  const currentTag = allTags.find((t) => t.slug === tagSlug)
+  const title = currentTag?.name || tagSlug
 
   return (
     <SectionContainer>
@@ -80,19 +69,14 @@ export default async function TagPagePaginated(props: {
         <>
           <div className="space-y-8">
             {posts.map((post) => (
-              <SanityPostCard key={post._id} post={post} isAuthenticated={isAuthenticated} />
+              <SanityPostCard key={post.slug} post={post} isAuthenticated={isAuthenticated} />
             ))}
           </div>
 
-          {/* Pagination */}
           <div className="mt-8 flex items-center justify-between">
             {pageNumber > 1 ? (
               <Link
-                href={
-                  pageNumber - 1 === 1
-                    ? `/tags/${tagSlug}`
-                    : `/tags/${tagSlug}/page/${pageNumber - 1}`
-                }
+                href={pageNumber - 1 === 1 ? `/tags/${tagSlug}` : `/tags/${tagSlug}/page/${pageNumber - 1}`}
                 className="text-accent hover:text-primary-300 font-medium"
               >
                 ← Previous Page
@@ -100,16 +84,9 @@ export default async function TagPagePaginated(props: {
             ) : (
               <div />
             )}
-
-            <span className="text-muted">
-              Page {pageNumber} of {totalPages}
-            </span>
-
+            <span className="text-muted">Page {pageNumber} of {totalPages}</span>
             {pageNumber < totalPages ? (
-              <Link
-                href={`/tags/${tagSlug}/page/${pageNumber + 1}`}
-                className="text-accent hover:text-primary-300 font-medium"
-              >
+              <Link href={`/tags/${tagSlug}/page/${pageNumber + 1}`} className="text-accent hover:text-primary-300 font-medium">
                 Next Page →
               </Link>
             ) : (

@@ -150,9 +150,37 @@ export const Authors = defineDocumentType(() => ({
   computedFields,
 }))
 
+export const Project = defineDocumentType(() => ({
+  name: 'Project',
+  filePathPattern: 'projects/**/*.mdx',
+  contentType: 'mdx',
+  fields: {
+    title:       { type: 'string',  required: true },
+    description: { type: 'string',  required: false },
+    techStack:   { type: 'list', of: { type: 'string' }, default: [] },
+    githubUrl:   { type: 'string',  required: false },
+    demoUrl:     { type: 'string',  required: false },
+    status:      { type: 'enum', options: ['active', 'paused', 'archived'], default: 'active' },
+    featured:    { type: 'boolean', default: false },
+    category:    { type: 'string',  default: 'infrastructure' },
+    coverImage:  { type: 'string',  required: false },
+    date:        { type: 'date',    required: false },
+  },
+  computedFields: {
+    slug: {
+      type: 'string',
+      resolve: (doc) => doc._raw.flattenedPath.replace(/^.+?(\/)/, ''),
+    },
+    url: {
+      type: 'string',
+      resolve: (doc) => `/projects/${doc._raw.flattenedPath.replace(/^.+?(\/)/, '')}`,
+    },
+  },
+}))
+
 export default makeSource({
   contentDirPath: 'data',
-  documentTypes: [Blog, Authors],
+  documentTypes: [Blog, Authors, Project],
   mdx: {
     cwd: process.cwd(),
     remarkPlugins: [

@@ -1,20 +1,18 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getAllPublishedPosts, getTagsWithCounts } from '@/lib/sanity/queries'
+import { getAllPosts, getAllTags } from '@/lib/content'
 import SanityLatestPosts from '@/components/SanityLatestPosts'
 import SanityPopularTags from '@/components/SanityPopularTags'
 import MostVisited from '@/components/MostVisited'
 
-// Revalidate every hour (3600 seconds)
 export const revalidate = 3600
 
 export default async function Page() {
   const session = await getServerSession(authOptions)
   const isAuthenticated = Boolean(session)
 
-  // Fetch all published posts from Sanity
-  const posts = await getAllPublishedPosts(100, 0) // Get up to 100 posts
-  const tagsWithCounts = await getTagsWithCounts()
+  const posts = getAllPosts()
+  const tagsWithCounts = getAllTags()
 
   return (
     <>

@@ -3,7 +3,7 @@ import { genPageMetadata } from 'app/seo'
 import { Metadata } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getPostsByTag, getPostsByTagCount, getAllTags } from '@/lib/sanity/queries'
+import { getPostsByTag, getAllTags } from '@/lib/content'
 import SanityPostCard from '@/components/SanityPostCard'
 import PageTitle from '@/components/PageTitle'
 import SectionContainer from '@/components/SectionContainer'
@@ -29,13 +29,10 @@ export async function generateMetadata(props: {
 }
 
 export const generateStaticParams = async () => {
-  const tags = await getAllTags()
-  return tags.map((tag) => ({
-    tag: tag.slug.current,
-  }))
+  const tags = getAllTags()
+  return tags.map(({ slug }) => ({ tag: slug }))
 }
 
-// Revalidate every hour
 export const revalidate = 3600
 
 export default async function TagPage(props: { params: Promise<{ tag: string }> }) {
@@ -45,30 +42,25 @@ export default async function TagPage(props: { params: Promise<{ tag: string }> 
   const session = await getServerSession(authOptions)
   const isAuthenticated = Boolean(session)
 
-  // Fetch posts by tag from Sanity
-  const posts = await getPostsByTag(tagSlug, POSTS_PER_PAGE, 0)
-  const totalCount = await getPostsByTagCount(tagSlug)
+  const posts = getPostsByTag(tagSlug)
+  const totalCount = posts.length
   const totalPages = Math.ceil(totalCount / POSTS_PER_PAGE)
+  const displayPosts = posts.slice(0, POSTS_PER_PAGE)
 
-  // Find the tag info for display
-  const allTags = await getAllTags()
-  const currentTag = allTags.find((t) => t.slug.current === tagSlug)
-  const title = currentTag?.title || tagSlug
+  const allTags = getAllTags()
+  const currentTag = allTags.find((t) => t.slug === tagSlug)
+  const title = currentTag?.name || tagSlug
 
   return (
     <SectionContainer>
       <nav aria-label="Breadcrumb" className="mb-4 pt-4">
         <ol className="flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
           <li>
-            <Link href="/" style={{ color: 'var(--muted)' }} className="transition-colors hover:text-white">
-              Home
-            </Link>
+            <Link href="/" style={{ color: 'var(--muted)' }} className="transition-colors hover:text-white">Home</Link>
           </li>
           <li aria-hidden="true" style={{ color: 'var(--border-bright)' }}>/</li>
           <li>
-            <Link href="/tags" style={{ color: 'var(--muted)' }} className="transition-colors hover:text-white">
-              Tags
-            </Link>
+            <Link href="/tags" style={{ color: 'var(--muted)' }} className="transition-colors hover:text-white">Tags</Link>
           </li>
           <li aria-hidden="true" style={{ color: 'var(--border-bright)' }}>/</li>
           <li style={{ color: 'var(--text)' }} aria-current="page">{title}</li>
@@ -81,7 +73,7 @@ export default async function TagPage(props: { params: Promise<{ tag: string }> 
         </p>
       </div>
 
-      {posts.length === 0 ? (
+      {displayPosts.length === 0 ? (
         <div className="py-16 text-center">
           <p className="text-muted">No posts found for this tag.</p>
           <Link href="/tags" className="text-accent hover:text-primary-300 mt-4 inline-block">
@@ -91,17 +83,14 @@ export default async function TagPage(props: { params: Promise<{ tag: string }> 
       ) : (
         <>
           <div className="space-y-8">
-            {posts.map((post) => (
-              <SanityPostCard key={post._id} post={post} isAuthenticated={isAuthenticated} />
+            {displayPosts.map((post) => (
+              <SanityPostCard key={post.slug} post={post} isAuthenticated={isAuthenticated} />
             ))}
           </div>
 
           {totalPages > 1 && (
             <div className="mt-8 flex justify-center">
-              <Link
-                href={`/tags/${tagSlug}/page/2`}
-                className="text-accent hover:text-primary-300 font-medium"
-              >
+              <Link href={`/tags/${tagSlug}/page/2`} className="text-accent hover:text-primary-300 font-medium">
                 Next Page →
               </Link>
             </div>

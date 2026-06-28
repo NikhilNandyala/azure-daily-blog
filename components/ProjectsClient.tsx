@@ -1,51 +1,34 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ProjectListItem } from '@/lib/sanity/types'
+import type { Project } from 'contentlayer/generated'
 import { ProjectCard } from '@/components/ProjectCard'
 
 interface ProjectsClientProps {
-  projects: ProjectListItem[]
-  featuredProjects: ProjectListItem[]
+  projects: Project[]
+  featuredProjects: Project[]
   categories: string[]
 }
 
-/**
- * ProjectsClient - Client-side filtering and display for projects
- */
 export function ProjectsClient({ projects, featuredProjects, categories }: ProjectsClientProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused' | 'archived'>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Filter projects
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
-      // Status filter
-      if (statusFilter !== 'all' && project.status !== statusFilter) {
-        return false
-      }
-
-      // Category filter
-      if (categoryFilter !== 'all' && project.category !== categoryFilter) {
-        return false
-      }
-
-      // Search filter (title + tech stack)
+      if (statusFilter !== 'all' && project.status !== statusFilter) return false
+      if (categoryFilter !== 'all' && project.category !== categoryFilter) return false
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         const titleMatch = project.title.toLowerCase().includes(query)
         const techMatch = project.techStack?.some((tech) => tech.toLowerCase().includes(query))
-        if (!titleMatch && !techMatch) {
-          return false
-        }
+        if (!titleMatch && !techMatch) return false
       }
-
       return true
     })
   }, [projects, statusFilter, categoryFilter, searchQuery])
 
-  // Get category display name
   const getCategoryName = (category: string) => {
     const categoryMap: Record<string, string> = {
       'web-app': 'Web Application',
@@ -55,6 +38,7 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
       infrastructure: 'Infrastructure',
       api: 'API/Backend',
       devops: 'DevOps',
+      networking: 'Networking',
       'data-science': 'Data Science',
       ml: 'Machine Learning',
       other: 'Other',
@@ -64,13 +48,13 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
 
   return (
     <div className="space-y-8">
-      {/* Featured Projects Section - Only show if any exist */}
+      {/* Featured Projects */}
       {featuredProjects.length > 0 && (
         <section className="mb-12">
           <h2 className="mb-6 text-2xl font-bold text-white">Featured Projects</h2>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             {featuredProjects.map((project) => (
-              <ProjectCard key={project._id} project={project} />
+              <ProjectCard key={project.slug} project={project} />
             ))}
           </div>
         </section>
@@ -79,13 +63,9 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
       {/* Filters */}
       <div className="space-y-4 rounded-lg border border-gray-800 bg-gray-900 p-6">
         <h3 className="text-sm font-semibold text-gray-400">Filter Projects</h3>
-
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {/* Status Filter */}
           <div>
-            <label htmlFor="status" className="mb-2 block text-sm font-medium text-gray-400">
-              Status
-            </label>
+            <label htmlFor="status" className="mb-2 block text-sm font-medium text-gray-400">Status</label>
             <select
               id="status"
               value={statusFilter}
@@ -98,12 +78,8 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
               <option value="archived">Archived</option>
             </select>
           </div>
-
-          {/* Category Filter */}
           <div>
-            <label htmlFor="category" className="mb-2 block text-sm font-medium text-gray-400">
-              Category
-            </label>
+            <label htmlFor="category" className="mb-2 block text-sm font-medium text-gray-400">Category</label>
             <select
               id="category"
               value={categoryFilter}
@@ -112,18 +88,12 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
             >
               <option value="all">All Categories</option>
               {categories.map((category) => (
-                <option key={category} value={category}>
-                  {getCategoryName(category)}
-                </option>
+                <option key={category} value={category}>{getCategoryName(category)}</option>
               ))}
             </select>
           </div>
-
-          {/* Search */}
           <div>
-            <label htmlFor="search" className="mb-2 block text-sm font-medium text-gray-400">
-              Search
-            </label>
+            <label htmlFor="search" className="mb-2 block text-sm font-medium text-gray-400">Search</label>
             <input
               id="search"
               type="text"
@@ -135,23 +105,17 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
           </div>
         </div>
 
-        {/* Active Filters Display */}
         {(statusFilter !== 'all' || categoryFilter !== 'all' || searchQuery) && (
           <div className="flex items-center gap-2 pt-2">
             <span className="text-sm text-gray-500">Active filters:</span>
             {statusFilter !== 'all' && (
               <button
                 onClick={() => setStatusFilter('all')}
-                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-[#d4a843]" style={{ background: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.35)' }}
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-[#d4a843]"
+                style={{ background: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.35)' }}
               >
                 Status: {statusFilter}
-                <svg
-                  className="h-3 w-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -159,16 +123,11 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
             {categoryFilter !== 'all' && (
               <button
                 onClick={() => setCategoryFilter('all')}
-                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-[#d4a843]" style={{ background: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.35)' }}
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-[#d4a843]"
+                style={{ background: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.35)' }}
               >
                 {getCategoryName(categoryFilter)}
-                <svg
-                  className="h-3 w-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -176,16 +135,11 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-[#d4a843]" style={{ background: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.35)' }}
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium text-[#d4a843]"
+                style={{ background: 'rgba(200,134,10,0.12)', border: '1px solid rgba(200,134,10,0.35)' }}
               >
                 &quot;{searchQuery}&quot;
-                <svg
-                  className="h-3 w-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -194,29 +148,23 @@ export function ProjectsClient({ projects, featuredProjects, categories }: Proje
         )}
       </div>
 
-      {/* Results Count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-400">
           {filteredProjects.length} {filteredProjects.length === 1 ? 'project' : 'projects'} found
         </p>
       </div>
 
-      {/* Projects Grid */}
       {filteredProjects.length > 0 ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {filteredProjects.map((project) => (
-            <ProjectCard key={project._id} project={project} />
+            <ProjectCard key={project.slug} project={project} />
           ))}
         </div>
       ) : (
         <div className="py-16 text-center">
           <p className="text-gray-500">No projects match your filters.</p>
           <button
-            onClick={() => {
-              setStatusFilter('all')
-              setCategoryFilter('all')
-              setSearchQuery('')
-            }}
+            onClick={() => { setStatusFilter('all'); setCategoryFilter('all'); setSearchQuery('') }}
             className="mt-4 text-sm text-[#f0a500] hover:text-[#ffd166]"
           >
             Clear all filters

@@ -1,18 +1,3 @@
-import { PortableTextContent } from './sanity/types'
-
-function extractTextFromBlocks(blocks: PortableTextContent[]): string {
-  if (!Array.isArray(blocks)) return ''
-  return blocks
-    .filter((b) => b?._type === 'block')
-    .map((b) =>
-      (b.children || [])
-        .filter((c: { _type: string }) => c._type === 'span')
-        .map((c: { text?: string }) => c.text || '')
-        .join('')
-    )
-    .join(' ')
-}
-
 function extractTextFromMarkdown(md: string): string {
   return md
     .replace(/```[\s\S]*?```/g, ' ')
@@ -23,12 +8,8 @@ function extractTextFromMarkdown(md: string): string {
     .replace(/[*_~>#|]/g, ' ')
 }
 
-export function readingTime(content: PortableTextContent[] | string): number {
-  const text =
-    typeof content === 'string'
-      ? extractTextFromMarkdown(content)
-      : extractTextFromBlocks(content)
-
+export function readingTime(content: string): number {
+  const text = extractTextFromMarkdown(content)
   const wordCount = text.trim().split(/\s+/).filter(Boolean).length
   return Math.max(1, Math.ceil(wordCount / 200))
 }

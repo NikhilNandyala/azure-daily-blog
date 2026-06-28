@@ -1,107 +1,65 @@
 import 'css/prism.css'
 import 'css/highlight.css'
-import 'katex/dist/katex.css'
 
 import { notFound } from 'next/navigation'
-import { draftMode } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import Link from '@/components/Link'
 import SectionContainer from '@/components/SectionContainer'
-import { getSiteSettings } from '@/lib/sanity/getSiteSettings'
-import { getPostBySlug, getAllPostSlugs } from '@/lib/sanity/queriesDraft'
-import { getSanityClient } from '@/lib/sanity/getClient'
-import { SanityPortableText } from '@/components/SanityPortableText'
-import { PostBody } from '@/components/PostBody'
-import { SanityCoverImage } from '@/components/SanityImage'
+import { getAllPosts, getPostBySlug } from '@/lib/content'
+import { MDXRenderer } from '@/components/MDXRenderer'
 import { ViewTracker } from '@/components/ViewTracker'
-import { buildPostMetadata, generateBlogPostSchema } from '@/lib/sanity/seo'
-import { DraftModeBanner } from '@/components/DraftModeBanner'
-import { sanityConfigured, getPublicClient } from '@/lib/sanity/client'
 import { ScrollProgressBar } from '@/components/ScrollProgressBar'
 import { ReadingTimeBadge } from '@/components/ReadingTimeBadge'
 import { BackToTop } from '@/components/BackToTop'
 import { TableOfContents } from '@/components/TableOfContents'
-import { readingTime } from '@/lib/readingTime'
+import { slug as slugify } from 'github-slugger'
+import type { Metadata } from 'next'
+import siteMetadata from '@/data/siteMetadata'
 
-// Revalidate every 24 hours
 export const revalidate = 86400
 
-export async function generateMetadata(props: { params: Promise<{ slug: string[] }> }) {
-  if (!sanityConfigured) return undefined
-
+export async function generateMetadata(
+  props: { params: Promise<{ slug: string[] }> }
+): Promise<Metadata> {
   const params = await props.params
-  const slug = params.slug[0]
-  const client = await getSanityClient()
+  const postSlug = params.slug[0]
+  const post = getPostBySlug(postSlug)
+  if (!post) return { title: 'Post not found' }
 
-  if (!client) return undefined
-
-  const post = await getPostBySlug(client, slug)
-  const settings = await getSiteSettings(client)
-
-  if (!post) return undefined
-
-  return buildPostMetadata(post, settings)
+  return {
+    title: `${post.title} | ${siteMetadata.title}`,
+    description: post.summary,
+    openGraph: {
+      title: post.title,
+      description: post.summary,
+      type: 'article',
+      publishedTime: post.date,
+    },
+  }
 }
 
 export async function generateStaticParams() {
-  if (!sanityConfigured) return []
-
-  const client = getPublicClient()
-  if (!client) return []
-
-  try {
-    const slugs = await getAllPostSlugs(client)
-    return slugs.map((item) => ({ slug: [item.current] }))
-  } catch (error) {
-    console.error('Error generating static params for blog posts:', error)
-    return []
-  }
+  return getAllPosts().map((post) => ({ slug: [post.slug] }))
 }
 
 export default async function PostPage(props: { params: Promise<{ slug: string[] }> }) {
   const params = await props.params
-  const slug = params.slug[0]
-  const draft = await draftMode()
-  const client = await getSanityClient()
+  const postSlug = params.slug[0]
 
-  if (!client) {
-    return (
-      <SectionContainer>
-        <div className="space-y-4 py-24 text-center">
-          <h1 className="text-3xl font-bold">Sanity configuration missing</h1>
-          <p className="text-muted">
-            Set NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET to build blog pages.
-          </p>
-        </div>
-      </SectionContainer>
-    )
-  }
-
-  const post = await getPostBySlug(client, slug)
+  const post = getPostBySlug(postSlug)
   if (!post) notFound()
-  if (post.status === 'draft' && !draft.isEnabled) notFound()
 
   const session = await getServerSession(authOptions)
-  const isMembersOnly = post.membersOnly
-  const settings = await getSiteSettings(client)
 
-  if (isMembersOnly && !session) {
-    const callbackUrl = `/blog/${slug}`
+  if (post.membersOnly && !session) {
+    const callbackUrl = `/blog/${postSlug}`
     const loginHref = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="max-w-md rounded-lg border border-white/6 bg-[#111827] p-8 text-center">
           <p className="text-accent mb-2 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide uppercase">
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
               <path d="M6 10V8a6 6 0 1 1 12 0v2" />
               <rect x="4" y="10" width="16" height="10" rx="2" />
@@ -113,10 +71,7 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
             This post is reserved for members. Please sign in to unlock the content.
           </p>
           <div className="flex justify-center">
-            <Link
-              href={loginHref}
-              className="text-inverse rounded-md bg-[#38BDF8] px-4 py-2 text-sm font-medium hover:bg-[#60A5FA]"
-            >
+            <Link href={loginHref} className="text-inverse rounded-md bg-[#38BDF8] px-4 py-2 text-sm font-medium hover:bg-[#60A5FA]">
               Log in to read
             </Link>
           </div>
@@ -125,20 +80,14 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
     )
   }
 
-  const jsonLd = generateBlogPostSchema(post, settings)
-  const minutes = readingTime(post.markdownBody ?? post.body ?? [])
+  const minutes = Math.ceil((post.readingTime as { minutes: number }).minutes) || 1
 
   return (
     <>
       <ScrollProgressBar />
-      {draft.isEnabled && <DraftModeBanner />}
-      <ViewTracker slug={slug} />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <ViewTracker slug={postSlug} />
       <SectionContainer>
-        <div className={draft.isEnabled ? 'pt-24' : ''}>
+        <div>
           {/* Post header */}
           <header className="border-b border-white/6 py-6">
             <div className="mb-6">
@@ -155,27 +104,18 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
               </Link>
             </div>
             <div className="space-y-1 text-center">
-              {draft.isEnabled && post.status === 'draft' && (
-                <div className="mb-4 inline-block rounded-full border border-amber-500 bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-600">
-                  DRAFT
-                </div>
-              )}
               <dl className="space-y-10">
                 <div>
                   <dt className="sr-only">Published on</dt>
                   <dd className="text-muted flex items-center justify-center gap-3 text-base leading-6 font-medium">
-                    {post.publishedAt ? (
-                      <time dateTime={post.publishedAt}>
-                        {new Date(post.publishedAt).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </time>
-                    ) : (
-                      <span>Date not set</span>
-                    )}
+                    <time dateTime={post.date}>
+                      {new Date(post.date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </time>
                     <span aria-hidden="true">·</span>
                     <ReadingTimeBadge minutes={minutes} />
                   </dd>
@@ -189,33 +129,24 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
               {post.tags && post.tags.length > 0 && (
                 <div className="flex flex-wrap justify-center gap-2 pt-4">
                   {post.tags.map((tag) => (
-                    <span
-                      key={tag._id}
+                    <Link
+                      key={tag}
+                      href={`/tags/${slugify(tag)}`}
                       className="mr-2 inline-block rounded-full px-3 py-1 text-sm font-semibold"
                       style={{ background: 'rgba(200,134,10,0.10)', border: '1px solid rgba(200,134,10,0.35)', color: '#d4a843' }}
                     >
-                      #{tag.title}
-                    </span>
+                      #{tag}
+                    </Link>
                   ))}
                 </div>
               )}
             </div>
           </header>
 
-          {post.coverImage && (
-            <div className="relative -mx-6 my-8 w-full md:mx-0">
-              <SanityCoverImage image={post.coverImage} alt={post.title} priority />
-            </div>
-          )}
-
           {/* Content + ToC sidebar */}
           <div className="xl:grid xl:grid-cols-[1fr_240px] xl:gap-10">
             <div className="prose dark:prose-invert max-w-none py-6">
-              {post.markdownBody ? (
-                <PostBody content={post.markdownBody} />
-              ) : (
-                <SanityPortableText value={post.body} />
-              )}
+              <MDXRenderer code={post.body.code} />
             </div>
 
             {/* Sticky ToC — desktop only */}
