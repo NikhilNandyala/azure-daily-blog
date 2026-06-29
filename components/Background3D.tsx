@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import * as THREE from 'three'
 
 interface FloatingShape {
@@ -10,14 +11,43 @@ interface FloatingShape {
   rotX: number
   rotY: number
   rotZ: number
+  baseOpacity: number
 }
 
 export default function Background3D() {
   const mountRef = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
+  const isPostPage = pathname.startsWith('/blog/') && pathname.split('/').length > 2
+
+  // Refs to materials so path-change effect can update opacity reactively
+  const particleMatRef = useRef<THREE.PointsMaterial | null>(null)
+  const gridMatRef = useRef<THREE.LineBasicMaterial | null>(null)
+  const lineMatRef = useRef<THREE.LineBasicMaterial | null>(null)
+  const shapesRef = useRef<FloatingShape[]>([])
+
+  // Update material opacities whenever path changes (no scene rebuild needed)
+  useEffect(() => {
+    if (particleMatRef.current) {
+      particleMatRef.current.opacity = isPostPage ? 0.22 : 0.6
+    }
+    if (gridMatRef.current) {
+      gridMatRef.current.opacity = isPostPage ? 0.02 : 0.08
+    }
+    if (lineMatRef.current) {
+      lineMatRef.current.opacity = isPostPage ? 0.02 : 0.06
+    }
+    shapesRef.current.forEach((s) => {
+      ;(s.mesh.material as THREE.MeshStandardMaterial).opacity = isPostPage
+        ? s.baseOpacity * 0.35
+        : s.baseOpacity
+    })
+  }, [isPostPage])
 
   useEffect(() => {
     const mount = mountRef.current
     if (!mount) return
+
+    const postPage = isPostPage
 
     // ── Renderer ──────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -75,8 +105,10 @@ export default function Background3D() {
       vertexColors: true,
       blending: THREE.AdditiveBlending,
       transparent: true,
+      opacity: postPage ? 0.22 : 0.6,
       depthWrite: false,
     })
+    particleMatRef.current = particleMat
 
     const particleField = new THREE.Points(particleGeo, particleMat)
     scene.add(particleField)
@@ -86,9 +118,10 @@ export default function Background3D() {
     const gridWireGeo = new THREE.WireframeGeometry(gridBaseGeo)
     const gridMat = new THREE.LineBasicMaterial({
       color: 0x0078d4,
-      opacity: 0.08,
+      opacity: postPage ? 0.02 : 0.08,
       transparent: true,
     })
+    gridMatRef.current = gridMat
     const grid = new THREE.LineSegments(gridWireGeo, gridMat)
     grid.rotation.x = -Math.PI / 2
     grid.position.y = -80
@@ -99,10 +132,11 @@ export default function Background3D() {
     for (let i = 0; i < 8; i++) {
       const radius = 3 + Math.random() * 5
       const geo = new THREE.IcosahedronGeometry(radius, 1)
+      const baseOpacity = 0.15 + Math.random() * 0.15
       const mat = new THREE.MeshStandardMaterial({
         color: Math.random() < 0.5 ? 0x0078d4 : 0x00bcf2,
         wireframe: true,
-        opacity: 0.15 + Math.random() * 0.15,
+        opacity: postPage ? baseOpacity * 0.35 : baseOpacity,
         transparent: true,
       })
       const mesh = new THREE.Mesh(geo, mat)
@@ -118,8 +152,10 @@ export default function Background3D() {
         rotX: 0.002 + Math.random() * 0.006,
         rotY: 0.002 + Math.random() * 0.006,
         rotZ: 0.002 + Math.random() * 0.006,
+        baseOpacity,
       })
     }
+    shapesRef.current = shapes
 
     // ── 4. Connecting Lines ───────────────────────────────────
     const SAMPLE_COUNT = 300
@@ -154,11 +190,12 @@ export default function Background3D() {
     )
     const lineMat = new THREE.LineBasicMaterial({
       color: 0x00bcf2,
-      opacity: 0.06,
+      opacity: postPage ? 0.02 : 0.06,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     })
+    lineMatRef.current = lineMat
     const connectionLines = new THREE.LineSegments(lineGeo, lineMat)
     scene.add(connectionLines)
 
@@ -189,15 +226,12 @@ export default function Background3D() {
 
       time += 0.01
 
-      // Slowly rotate the particle field
       particleField.rotation.y += 0.0003
       particleField.rotation.x += 0.0001
 
-      // Scroll grid forward, loop seamlessly
       grid.position.z += 0.15
       if (grid.position.z >= 60) grid.position.z = 0
 
-      // Bob and rotate each icosahedron
       shapes.forEach((s) => {
         s.mesh.rotation.x += s.rotX
         s.mesh.rotation.y += s.rotY
@@ -205,10 +239,8 @@ export default function Background3D() {
         s.mesh.position.y = s.baseY + Math.sin(time + s.phase) * 8
       })
 
-      // Pulse connection line opacity
-      lineMat.opacity = Math.sin(time * 0.5) * 0.03 + 0.06
+      lineMat.opacity = Math.sin(time * 0.5) * 0.03 + lineMat.opacity
 
-      // Camera parallax lerp toward mouse
       const targetX = (mouseX / window.innerWidth - 0.5) * 15
       const targetY = -(mouseY / window.innerHeight - 0.5) * 8
       camera.position.x += (targetX - camera.position.x) * 0.05
@@ -238,15 +270,18 @@ export default function Background3D() {
         }
       })
 
-      // gridBaseGeo is not added to the scene — dispose manually
       gridBaseGeo.dispose()
-
       renderer.dispose()
       if (mount.contains(renderer.domElement)) {
         mount.removeChild(renderer.domElement)
       }
+
+      particleMatRef.current = null
+      gridMatRef.current = null
+      lineMatRef.current = null
+      shapesRef.current = []
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div

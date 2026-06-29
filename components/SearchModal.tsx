@@ -25,6 +25,7 @@ export default function SearchModal({ posts, isOpen, onClose }: SearchModalProps
   const [results, setResults] = useState<Post[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
+  const [inputFocused, setInputFocused] = useState(false)
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -33,66 +34,109 @@ export default function SearchModal({ posts, isOpen, onClose }: SearchModalProps
   }, [isOpen])
 
   useEffect(() => {
-    if (query.trim() === '') {
+    if (!isOpen) {
+      setQuery('')
       setResults([])
-      return
     }
+  }, [isOpen])
 
-    const searchTerm = query.toLowerCase()
-    const filteredPosts = posts.filter((post) => {
-      const titleMatch = post.title.toLowerCase().includes(searchTerm)
-      const summaryMatch = post.summary?.toLowerCase().includes(searchTerm)
-      const tagsMatch = post.tags.some((tag) => tag.toLowerCase().includes(searchTerm))
-
-      return titleMatch || summaryMatch || tagsMatch
-    })
-
-    setResults(filteredPosts)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (query.trim() === '') {
+        setResults([])
+        return
+      }
+      const q = query.toLowerCase()
+      setResults(
+        posts.filter(
+          (post) =>
+            post.title.toLowerCase().includes(q) ||
+            (post.summary ?? '').toLowerCase().includes(q) ||
+            post.tags.some((tag) => tag.toLowerCase().includes(q))
+        )
+      )
+    }, 200)
+    return () => clearTimeout(timer)
   }, [query, posts])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
+      if (e.key === 'Escape') onClose()
     }
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown)
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    if (isOpen) document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
   if (!isOpen) return null
 
   return (
-    <div className="bg-opacity-50 fixed inset-0 z-50 flex items-start justify-center bg-black pt-20">
+    <>
+      {/* Blurred backdrop */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(5, 13, 26, 0.75)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          zIndex: 40,
+        }}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Modal card */}
       <div
         ref={modalRef}
-        className="w-full max-w-2xl rounded-lg border border-white/6 bg-[#111827] p-6 shadow-xl"
+        style={{
+          position: 'fixed',
+          top: '20%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '90%',
+          maxWidth: '580px',
+          background: 'linear-gradient(135deg, rgba(15,31,56,0.98), rgba(10,22,40,0.99))',
+          border: '1px solid rgba(200,134,10,0.3)',
+          borderRadius: '16px',
+          padding: '24px',
+          zIndex: 50,
+          boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+        }}
       >
-        <div className="relative">
+        {/* Search input */}
+        <div style={{ position: 'relative', marginBottom: '16px' }}>
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search posts by title, summary, or tags..."
+            placeholder="Search posts by title, tags, or content…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="text-body placeholder:text-muted w-full rounded-lg border border-white/6 bg-[#1F2937] px-4 py-3 pr-10 focus:border-[#38BDF8] focus:ring-2 focus:ring-[#38BDF8] focus:outline-none"
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
+            style={{
+              background: 'rgba(5,13,26,0.8)',
+              border: `1px solid ${inputFocused ? '#f0a500' : 'rgba(200,134,10,0.3)'}`,
+              borderRadius: '10px',
+              color: '#ffeaa0',
+              padding: '12px 44px 12px 16px',
+              fontSize: '14px',
+              width: '100%',
+              outline: 'none',
+              transition: 'border-color 0.15s',
+              boxSizing: 'border-box',
+            }}
           />
           <svg
-            className="absolute top-3.5 right-3 h-5 w-5 text-gray-400"
+            style={{
+              position: 'absolute',
+              top: '50%',
+              right: '14px',
+              transform: 'translateY(-50%)',
+              width: '18px',
+              height: '18px',
+              color: '#8a7a5a',
+              pointerEvents: 'none',
+            }}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -106,65 +150,111 @@ export default function SearchModal({ posts, isOpen, onClose }: SearchModalProps
           </svg>
         </div>
 
+        {/* Results */}
         {query.trim() !== '' && (
-          <div className="mt-4 max-h-96 overflow-y-auto">
+          <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
             {results.length > 0 ? (
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {results.map((post) => (
                   <Link
                     key={post.slug}
                     href={`/blog/${post.slug}`}
                     onClick={onClose}
-                    className="block rounded-lg border border-white/6 p-4 hover:bg-[#1F2937]"
+                    style={{
+                      display: 'block',
+                      borderRadius: '10px',
+                      border: '0.5px solid rgba(200,134,10,0.15)',
+                      padding: '14px 16px',
+                      background: 'rgba(10,22,40,0.6)',
+                      textDecoration: 'none',
+                      transition: 'border-color 0.15s, background 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,134,10,0.4)'
+                      ;(e.currentTarget as HTMLElement).style.background = 'rgba(15,31,56,0.8)'
+                    }}
+                    onMouseLeave={(e) => {
+                      ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,134,10,0.15)'
+                      ;(e.currentTarget as HTMLElement).style.background = 'rgba(10,22,40,0.6)'
+                    }}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-body text-lg font-semibold">{post.title}</h3>
-                        {post.summary && (
-                          <p className="text-muted mt-1 line-clamp-2 text-sm">{post.summary}</p>
-                        )}
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {post.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="text-body inline-block rounded-full bg-[#374151] px-2 py-1 text-xs"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: '#ffeaa0',
+                        marginBottom: '4px',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {post.title}
+                    </div>
+                    {post.summary && (
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: '#8a7a5a',
+                          marginBottom: '8px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {post.summary.slice(0, 100)}
                       </div>
-                      <div className="text-muted ml-4 flex flex-col items-end text-xs">
-                        {post.featured && (
-                          <span className="text-accent mb-1 rounded bg-[#1F2937] px-2 py-1">
-                            Featured
-                          </span>
-                        )}
-                        {post.pinned && (
-                          <span className="text-inverse rounded bg-[#F59E0B] px-2 py-1">
-                            Pinned
-                          </span>
-                        )}
-                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {post.tags.slice(0, 4).map((tag) => (
+                        <span
+                          key={tag}
+                          style={{
+                            fontSize: '10px',
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            background: 'rgba(200,134,10,0.1)',
+                            border: '1px solid rgba(200,134,10,0.25)',
+                            color: '#d4a843',
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
                     </div>
                   </Link>
                 ))}
               </div>
             ) : (
-              <div className="text-muted py-8 text-center">No posts found matching "{query}"</div>
+              <div
+                style={{
+                  padding: '32px 0',
+                  textAlign: 'center',
+                  fontSize: '13px',
+                  color: '#8a7a5a',
+                }}
+              >
+                No posts found for &ldquo;{query}&rdquo;
+              </div>
             )}
           </div>
         )}
 
-        <div className="mt-4 flex justify-end">
+        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={onClose}
-            className="text-body rounded-lg bg-[#374151] px-4 py-2 text-sm font-medium hover:bg-[#4B5563]"
+            style={{
+              fontSize: '12px',
+              color: '#8a7a5a',
+              background: 'transparent',
+              border: '1px solid rgba(200,134,10,0.2)',
+              borderRadius: '6px',
+              padding: '6px 14px',
+              cursor: 'pointer',
+            }}
           >
-            Close
+            Close (Esc)
           </button>
         </div>
       </div>
-    </div>
+    </>
   )
 }

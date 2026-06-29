@@ -87,7 +87,20 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
       <ScrollProgressBar />
       <ViewTracker slug={postSlug} />
       <SectionContainer>
-        <div>
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            background: 'rgba(5, 13, 26, 0.55)',
+            backdropFilter: 'blur(2px)',
+            WebkitBackdropFilter: 'blur(2px)',
+            borderRadius: '16px',
+            padding: '40px 48px',
+            border: '0.5px solid rgba(200,134,10,0.1)',
+            maxWidth: '900px',
+            margin: '0 auto',
+          }}
+        >
           {/* Post header */}
           <header className="border-b border-white/6 py-6">
             <div className="mb-6">
