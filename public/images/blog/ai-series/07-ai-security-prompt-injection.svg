@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050d1a"/>
+      <stop offset="100%" style="stop-color:#0a1628"/>
+    </linearGradient>
+    <linearGradient id="accent1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#c8860a;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#f0a500;stop-opacity:0.6"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="40"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <ellipse cx="900" cy="200" rx="350" ry="280" fill="#f472b6" fill-opacity="0.08" filter="url(#blur)"/>
+  <rect x="0" y="0" width="1200" height="5" fill="url(#accent1)"/>
+  <line x1="0" y1="100" x2="1200" y2="100" stroke="#c8860a" stroke-opacity="0.06" stroke-width="1"/>
+  <line x1="0" y1="530" x2="1200" y2="530" stroke="#c8860a" stroke-opacity="0.06" stroke-width="1"/>
+  <!-- Badge -->
+  <rect x="80" y="140" width="90" height="28" rx="14" fill="#f472b6" fill-opacity="0.15" stroke="#f472b6" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="125" y="159" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#f9a8d4" letter-spacing="0.08em">AI</text>
+  <text x="80" y="224" font-family="system-ui, -apple-system, monospace" font-size="13" fill="#c8860a" fill-opacity="0.6" letter-spacing="0.12em">07 —</text>
+  <text x="80" y="290" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#f5f0e8" letter-spacing="-0.02em">AI Security</text>
+  <text x="80" y="350" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#f5f0e8" letter-spacing="-0.02em">Prompt Injection</text>
+  <text x="80" y="408" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#a89060" letter-spacing="0.01em">7 Patterns You Need to Know</text>
+  <line x1="80" y1="450" x2="480" y2="450" stroke="#c8860a" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="80" y="478" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#7a6a4a" letter-spacing="0.06em">AZUREFIXES.COM</text>
+  <!-- Shield icon -->
+  <path d="M1050 220 L1150 240 L1150 310 Q1150 380 1100 410 Q1050 380 1050 310 Z" fill="none" stroke="#f472b6" stroke-opacity="0.3" stroke-width="2"/>
+  <path d="M1065 240 L1135 255 L1135 310 Q1135 365 1100 388 Q1065 365 1065 310 Z" fill="#f472b6" fill-opacity="0.06"/>
+  <!-- Lock in shield -->
+  <rect x="1083" y="315" width="34" height="28" rx="4" fill="none" stroke="#f472b6" stroke-opacity="0.5" stroke-width="1.5"/>
+  <path d="M1091 315 L1091 305 Q1091 292 1100 292 Q1109 292 1109 305 L1109 315" fill="none" stroke="#f472b6" stroke-opacity="0.5" stroke-width="1.5"/>
+  <circle cx="1100" cy="329" r="4" fill="#f472b6" fill-opacity="0.7"/>
+</svg>

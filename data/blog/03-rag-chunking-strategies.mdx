@@ -1,0 +1,229 @@
+---
+title: 'Building RAG on Azure: Chunking Strategies That Actually Work'
+date: '2026-01-22'
+summary: 'Chunking is the step most teams rush past when building RAG systems. The wrong chunking strategy makes your search retrieve the right document but the wrong passage — and the LLM hallucinates the rest. Here is what works.'
+tags: ['Azure', 'AI', 'RAG', 'AISearch', 'AIEngineering']
+postType: tutorial
+featured: false
+authors: ['NVN']
+membersOnly: false
+draft: false
+coverImage: '/images/blog/ai-series/03-rag-chunking-strategies.svg'
+---
+
+Chunking is the step most teams rush past.
+
+You pick a chunk size, split the document, embed everything, and move on. Then you wonder why your RAG system keeps answering questions with the right general topic but wrong specific details.
+
+The problem is almost always chunking.
+
+Here's what actually works — and why.
+
+---
+
+## Why Chunking Matters More Than the Model
+
+Your retrieval step fetches the top K chunks from your vector index. The LLM then answers the question using only those chunks as context.
+
+If the chunk that contains the answer is split across two chunks, neither chunk fully answers the question. The LLM gets partial context and fills in the rest from training data — which is hallucination.
+
+```
+Document: "The quarterly maintenance window is every Sunday from 2-4 AM UTC.
+           Deployments are blocked during this window."
+
+Bad chunk boundary:
+  Chunk A: "The quarterly maintenance window is every Sunday from 2-4"
+  Chunk B: "AM UTC. Deployments are blocked during this window."
+
+Search: "When are deployments blocked?"
+Retrieved: Chunk B ← correct content, but missing the time context
+LLM answers: "Deployments are blocked during the maintenance window" ← vague non-answer
+```
+
+Good chunking keeps semantically related sentences together.
+
+---
+
+## Strategy 1: Fixed-Size Chunking
+
+Split every N characters (or tokens), with optional overlap.
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,        # target characters per chunk
+    chunk_overlap=50,      # overlap between chunks
+    separators=["\n\n", "\n", ". ", " ", ""]
+)
+
+chunks = splitter.split_text(document_text)
+```
+
+**Pros:**
+- Simple, predictable, fast
+- Works well for uniform content (support tickets, short articles)
+
+**Cons:**
+- Splits sentences mid-thought
+- Ignores document structure
+- Overlap helps but doesn't fix boundary problems
+
+**When to use:** Log files, structured records, content where every sentence is independent.
+
+---
+
+## Strategy 2: Recursive Character Chunking
+
+Split on natural language boundaries first (paragraphs → sentences → words), falling back to characters only when needed. The `RecursiveCharacterTextSplitter` above already does this with the `separators` parameter.
+
+The key improvement: it tries `\n\n` first (paragraph breaks), then `\n` (line breaks), then `. ` (sentence ends). Characters are a last resort, not the default.
+
+**Tune for your content type:**
+
+```python
+# For markdown documentation
+md_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=800,
+    chunk_overlap=100,
+    separators=["## ", "### ", "\n\n", "\n", ". "]
+)
+
+# For code (preserve function boundaries)
+code_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1200,
+    chunk_overlap=200,
+    separators=["\nclass ", "\ndef ", "\n\n", "\n"]
+)
+```
+
+This is the best general-purpose strategy for most document types.
+
+---
+
+## Strategy 3: Semantic Chunking
+
+Group sentences by their semantic similarity rather than by length. Sentences that are about the same topic stay together; sentences that shift topic create a chunk boundary.
+
+```python
+from langchain_experimental.text_splitter import SemanticChunker
+from langchain_openai import AzureOpenAIEmbeddings
+
+embeddings = AzureOpenAIEmbeddings(
+    azure_deployment="text-embedding-3-large",
+    azure_endpoint="https://your-resource.openai.azure.com",
+    api_key="...",
+    api_version="2024-02-01"
+)
+
+splitter = SemanticChunker(
+    embeddings,
+    breakpoint_threshold_type="percentile",   # or "standard_deviation"
+    breakpoint_threshold_amount=95,            # split when similarity drops below 95th percentile
+)
+
+chunks = splitter.split_text(document_text)
+```
+
+**Pros:**
+- Chunks reflect actual topic boundaries
+- Works well for heterogeneous documents (reports, PDFs with multiple sections)
+- Better retrieval recall for semantic search
+
+**Cons:**
+- Slow — embeds every sentence individually to compute similarity
+- Chunk sizes vary wildly (some chunks 100 tokens, some 2000)
+- Costs more (more embedding API calls during indexing)
+
+**When to use:** Long, complex documents where section boundaries matter. Annual reports, technical specifications, legal documents.
+
+---
+
+## Strategy 4: Parent-Child Chunking
+
+Index fine-grained child chunks for search precision, but retrieve the larger parent chunk to give the LLM more context.
+
+```python
+# Parent chunk: full section (~1000 tokens)
+# Child chunk: single paragraph (~150 tokens) — used for search
+
+from langchain.retrievers import ParentDocumentRetriever
+from langchain.storage import InMemoryStore
+from langchain.vectorstores import AzureSearch
+
+child_splitter = RecursiveCharacterTextSplitter(chunk_size=200)
+parent_splitter = RecursiveCharacterTextSplitter(chunk_size=1000)
+
+store = InMemoryStore()  # or use Redis, Azure Blob, etc.
+vectorstore = AzureSearch(...)
+
+retriever = ParentDocumentRetriever(
+    vectorstore=vectorstore,
+    docstore=store,
+    child_splitter=child_splitter,
+    parent_splitter=parent_splitter,
+)
+
+retriever.add_documents(documents)
+```
+
+**How it works:** Search finds the right 200-token child chunk. Before sending to the LLM, retrieve the full 1000-token parent — so the model gets full context, not just the matching sentence.
+
+**When to use:** Documents where you need precise matching (child chunks) but the answer requires surrounding context (parent chunks). This is the most effective strategy for dense technical documentation.
+
+---
+
+## Metadata Enrichment
+
+Regardless of chunking strategy, always attach metadata to chunks before indexing.
+
+```python
+def chunk_with_metadata(doc_path: str, content: str, chunks: list[str]) -> list[dict]:
+    return [
+        {
+            "content": chunk,
+            "source": doc_path,
+            "doc_title": extract_title(content),
+            "section": detect_section_heading(chunk),
+            "chunk_index": i,
+            "total_chunks": len(chunks),
+            "word_count": len(chunk.split()),
+            "created_at": datetime.utcnow().isoformat(),
+        }
+        for i, chunk in enumerate(chunks)
+    ]
+```
+
+Why this matters: When the LLM gives a wrong answer, you need to trace it back to which chunk caused it. Without metadata, you have no way to debug retrieval quality.
+
+Also add metadata to your Azure AI Search index as filterable fields. This lets you scope searches to specific documents, date ranges, or document types.
+
+---
+
+## Benchmark Results (What We See in Practice)
+
+| Strategy | Retrieval Accuracy | Index Speed | Chunk Consistency |
+|----------|-------------------|-------------|-------------------|
+| Fixed-size | 62% | Fast | High |
+| Recursive character | 74% | Fast | High |
+| Semantic | 81% | Slow (10x) | Low |
+| Parent-child | 83% | Medium | Medium |
+
+Numbers from our internal evaluations on 500-document technical knowledge bases. Your results will vary based on document type.
+
+The retrieval accuracy is measured as: what percentage of test queries retrieve at least one chunk containing the ground-truth answer.
+
+---
+
+## Recommended Starting Point
+
+For a new RAG system on Azure:
+
+1. Start with **recursive character chunking**, chunk size 600–800 tokens, overlap 100 tokens
+2. Add rich metadata (source, section, date) to every chunk
+3. Use Azure AI Search with hybrid search (keyword + vector)
+4. Run evaluation queries on 50–100 test questions, check if the right chunk was retrieved
+5. If retrieval accuracy is below 70%, try parent-child chunking
+6. Only move to semantic chunking if retrieval accuracy matters more than indexing cost
+
+The right chunking strategy depends entirely on your documents. Test, measure, iterate.

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050d1a"/>
+      <stop offset="100%" style="stop-color:#0a1628"/>
+    </linearGradient>
+    <linearGradient id="accent1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#c8860a;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#f0a500;stop-opacity:0.6"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="40"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <ellipse cx="900" cy="200" rx="350" ry="280" fill="#2899f5" fill-opacity="0.08" filter="url(#blur)"/>
+  <rect x="0" y="0" width="1200" height="5" fill="url(#accent1)"/>
+  <line x1="0" y1="100" x2="1200" y2="100" stroke="#c8860a" stroke-opacity="0.06" stroke-width="1"/>
+  <line x1="0" y1="530" x2="1200" y2="530" stroke="#c8860a" stroke-opacity="0.06" stroke-width="1"/>
+  <!-- Badge -->
+  <rect x="80" y="140" width="110" height="28" rx="14" fill="#2899f5" fill-opacity="0.15" stroke="#2899f5" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="135" y="159" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#93c5fd" letter-spacing="0.08em">TUTORIAL</text>
+  <text x="80" y="224" font-family="system-ui, -apple-system, monospace" font-size="13" fill="#c8860a" fill-opacity="0.6" letter-spacing="0.12em">06 —</text>
+  <text x="80" y="290" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#f5f0e8" letter-spacing="-0.02em">Prompt</text>
+  <text x="80" y="350" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#f5f0e8" letter-spacing="-0.02em">Versioning</text>
+  <text x="80" y="408" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#a89060" letter-spacing="0.01em">Managing Prompts Like Production Code</text>
+  <line x1="80" y1="450" x2="480" y2="450" stroke="#c8860a" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="80" y="478" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#7a6a4a" letter-spacing="0.06em">AZUREFIXES.COM</text>
+  <!-- Version history visualization -->
+  <circle cx="970" cy="240" r="8" fill="#c8860a" fill-opacity="0.7"/>
+  <line x1="970" y1="248" x2="970" y2="268" stroke="#c8860a" stroke-opacity="0.3" stroke-width="1.5"/>
+  <circle cx="970" cy="280" r="8" fill="#c8860a" fill-opacity="0.5"/>
+  <line x1="970" y1="288" x2="970" y2="308" stroke="#c8860a" stroke-opacity="0.3" stroke-width="1.5"/>
+  <circle cx="970" cy="320" r="8" fill="#2899f5" fill-opacity="0.7"/>
+  <line x1="970" y1="328" x2="970" y2="348" stroke="#c8860a" stroke-opacity="0.3" stroke-width="1.5"/>
+  <circle cx="970" cy="360" r="8" fill="#c8860a" fill-opacity="0.8"/>
+  <text x="990" y="244" font-family="monospace" font-size="12" fill="#f0a500" fill-opacity="0.6">v1.0.0 — initial</text>
+  <text x="990" y="284" font-family="monospace" font-size="12" fill="#f0a500" fill-opacity="0.6">v1.1.0 — add citations</text>
+  <text x="990" y="324" font-family="monospace" font-size="12" fill="#93c5fd" fill-opacity="0.8">v1.2.0 — A/B variant</text>
+  <text x="990" y="364" font-family="monospace" font-size="12" fill="#f0a500">v2.0.0 — persona shift</text>
+</svg>

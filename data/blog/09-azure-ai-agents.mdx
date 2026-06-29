@@ -1,0 +1,269 @@
+---
+title: 'Azure AI Agents: Azure AI Agent Service vs Semantic Kernel vs LangChain'
+date: '2026-04-16'
+summary: 'Three serious options exist for building AI agents on Azure, and they solve different problems. Azure AI Agent Service is fully managed but opinionated. Semantic Kernel is Microsoft-native and enterprise-ready. LangChain is flexible but complex. Here is how to choose.'
+tags: ['Azure', 'AI', 'Agents', 'SemanticKernel', 'LangChain', 'Architecture']
+postType: architecture
+featured: false
+authors: ['NVN']
+membersOnly: false
+draft: false
+coverImage: '/images/blog/ai-series/09-azure-ai-agents.svg'
+---
+
+Building an AI agent on Azure in 2026 means choosing between three serious frameworks — and each one is genuinely good for a different use case.
+
+This is not a "just use LangChain" or "just use Microsoft's stuff" situation. The right choice depends on your team, your existing stack, and how much control you need over execution.
+
+---
+
+## What Is an AI Agent?
+
+An agent is an LLM connected to tools. Instead of just answering a question, it can take actions:
+- Search a knowledge base
+- Call an API
+- Write a file
+- Execute code
+- Trigger a workflow
+
+Agents follow a loop: think → choose a tool → observe the result → think again → repeat until done.
+
+```
+User: "Find the top 3 open support tickets and summarize their status"
+
+Agent loop:
+  Step 1: Use search_tickets tool → returns 50 tickets
+  Step 2: Use filter_tickets tool → filters to "open" status
+  Step 3: Use sort_tickets tool → sorts by priority
+  Step 4: Selects top 3 tickets
+  Step 5: Uses summarize tool on each
+  Step 6: Returns compiled summary to user
+```
+
+Without agents, this requires writing explicit orchestration code. With agents, the LLM figures out the sequence.
+
+---
+
+## Option 1: Azure AI Agent Service
+
+Microsoft's fully managed agent runtime. You define tools and agents via REST API or SDK; Microsoft manages execution, memory, threading, and state.
+
+**When to use:**
+- You want zero infrastructure management
+- Your tools are simple (function calling, code interpreter, file search)
+- You need per-conversation thread persistence without managing state yourself
+- You're already in the Azure AI Foundry ecosystem
+
+**Creating an agent:**
+
+```python
+from azure.ai.projects import AIProjectClient
+from azure.ai.projects.models import CodeInterpreterTool, FileSearchTool
+from azure.identity import DefaultAzureCredential
+
+project_client = AIProjectClient.from_connection_string(
+    conn_str="eastus.api.azureml.ms;subscription-id;resource-group;workspace",
+    credential=DefaultAzureCredential()
+)
+
+agent = project_client.agents.create_agent(
+    model="gpt-4o",
+    name="azure-support-agent",
+    instructions="""You are an Azure infrastructure support agent. 
+    Help users diagnose and resolve Azure networking and AI deployment issues.
+    Always cite the specific resource or configuration that needs to change.""",
+    tools=[
+        FileSearchTool().definitions,       # search uploaded documents
+        CodeInterpreterTool().definitions,  # run Python for analysis
+    ]
+)
+```
+
+**Running a conversation:**
+
+```python
+# Each conversation is a "thread"
+thread = project_client.agents.create_thread()
+
+# Add user message
+project_client.agents.create_message(
+    thread_id=thread.id,
+    role="user",
+    content="My Azure OpenAI deployments in eastus are returning 503 errors"
+)
+
+# Run the agent
+run = project_client.agents.create_and_process_run(
+    thread_id=thread.id,
+    assistant_id=agent.id
+)
+
+# Get the response
+messages = project_client.agents.list_messages(thread_id=thread.id)
+answer = messages.get_last_message_by_role("assistant")
+```
+
+**What you get free:** Thread persistence, automatic tool execution, built-in file search with Azure AI Search, code interpreter sandboxing.
+
+**What you give up:** Fine-grained control over the agent loop. You can't interrupt mid-execution or inject context between steps.
+
+---
+
+## Option 2: Semantic Kernel
+
+Microsoft's open-source SDK for building AI applications. Works in Python and C#. Designed for enterprise integration — connects LLMs to existing enterprise systems.
+
+**When to use:**
+- Your team is .NET/C#-first (SK was built for this)
+- You need to integrate AI into an existing enterprise application
+- You want plugin architecture that mirrors your existing service structure
+- You need fine-grained control over planning and execution
+
+**Defining a plugin:**
+
+```python
+from semantic_kernel import Kernel
+from semantic_kernel.functions import kernel_function
+from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
+
+kernel = Kernel()
+kernel.add_service(
+    AzureChatCompletion(
+        deployment_name="gpt-4o",
+        endpoint="https://yourresource.openai.azure.com",
+        api_key="..."
+    )
+)
+
+class AzureResourcePlugin:
+    @kernel_function(description="Get the status of an Azure resource by name")
+    async def get_resource_status(self, resource_name: str) -> str:
+        # Call Azure Resource Manager API
+        return f"Resource {resource_name}: Running (last checked 2m ago)"
+    
+    @kernel_function(description="Restart an Azure resource")
+    async def restart_resource(self, resource_name: str) -> str:
+        # Call Azure Resource Manager API
+        return f"Restart initiated for {resource_name}"
+
+kernel.add_plugin(AzureResourcePlugin(), plugin_name="AzureResources")
+```
+
+**Running an agent:**
+
+```python
+from semantic_kernel.agents import ChatCompletionAgent
+from semantic_kernel.contents import ChatHistory
+
+agent = ChatCompletionAgent(
+    kernel=kernel,
+    name="azure-ops-agent",
+    instructions="You are an Azure operations agent. Use available plugins to help users manage their Azure resources."
+)
+
+history = ChatHistory()
+history.add_user_message("Check the status of my API service and restart it if it's unhealthy")
+
+async for message in agent.invoke(history=history):
+    print(message.content)
+```
+
+**What you get:** Full control over planning steps, easy plugin registration, enterprise-grade streaming and error handling, excellent observability via OpenTelemetry.
+
+**What you give up:** More boilerplate than Agent Service. You manage state and threading yourself.
+
+---
+
+## Option 3: LangChain
+
+The most widely used AI framework outside Microsoft. Extensive ecosystem of pre-built tools, retrievers, and agent patterns.
+
+**When to use:**
+- Your team has existing LangChain expertise
+- You need the broadest ecosystem (hundreds of pre-built integrations)
+- You're prototyping quickly and want to move fast
+- You need multi-agent patterns (LangGraph)
+
+**Creating an agent:**
+
+```python
+from langchain_openai import AzureChatOpenAI
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain.tools import tool
+from langchain_core.prompts import ChatPromptTemplate
+
+llm = AzureChatOpenAI(
+    azure_deployment="gpt-4o",
+    azure_endpoint="https://yourresource.openai.azure.com",
+    api_key="...",
+    api_version="2024-08-01-preview"
+)
+
+@tool
+def search_azure_docs(query: str) -> str:
+    """Search Azure documentation for a given query"""
+    # Call Azure AI Search
+    return "Search results..."
+
+@tool
+def get_azure_status(service: str) -> str:
+    """Get current Azure service health status"""
+    return f"{service}: Healthy"
+
+tools = [search_azure_docs, get_azure_status]
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are an Azure support agent. Use the tools to help users."),
+    ("human", "{input}"),
+    ("placeholder", "{agent_scratchpad}"),
+])
+
+agent = create_tool_calling_agent(llm, tools, prompt)
+executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+result = executor.invoke({"input": "What are the current limits for Azure OpenAI?"})
+```
+
+**What you get:** Fast prototyping, massive ecosystem, LangGraph for complex multi-agent workflows.
+
+**What you give up:** Less enterprise polish than SK. LangChain versioning is aggressive — upgrades often break things.
+
+---
+
+## Comparison Matrix
+
+| Factor | AI Agent Service | Semantic Kernel | LangChain |
+|--------|-----------------|-----------------|-----------|
+| Infrastructure management | None (managed) | Self-managed | Self-managed |
+| Control over execution | Low | High | High |
+| .NET/C# support | SDK available | Native | Limited |
+| Python support | SDK available | Good | Excellent |
+| Enterprise integrations | Azure-native | Microsoft-first | Broad ecosystem |
+| Multi-agent support | Limited | Good | Excellent (LangGraph) |
+| Learning curve | Low | Medium | Medium |
+| Production stability | High | High | Medium (rapid releases) |
+| State management | Built-in | Manual | Manual |
+| Open source | SDK is OSS | Yes | Yes |
+
+---
+
+## Decision Guide
+
+**Use Azure AI Agent Service when:**
+- Greenfield project, want fast shipping
+- Your tools are file search and code execution
+- You don't need cross-agent communication
+- Azure AI Foundry is your platform
+
+**Use Semantic Kernel when:**
+- Your team builds in .NET or Python
+- You're integrating AI into an existing enterprise application
+- You need predictable, well-tested enterprise behavior
+- You want Microsoft support and roadmap alignment
+
+**Use LangChain when:**
+- You need multi-agent orchestration (LangGraph)
+- You're using non-Azure AI providers alongside Azure
+- Your team has strong existing LangChain knowledge
+- You need an integration that doesn't exist in SK or Agent Service
+
+For most new enterprise Azure AI projects in 2026, Semantic Kernel is the lowest-risk choice with the best long-term support story. LangChain is the right call if your use case needs LangGraph's multi-agent patterns or a specific third-party integration.

@@ -1,0 +1,265 @@
+---
+title: 'Production AI on Azure: What Actually Breaks at Scale'
+date: '2025-12-22'
+summary: 'Deploying Azure OpenAI in a demo is easy. Running it in production at scale is a different problem. Here are the seven failure modes we hit repeatedly — and how to fix them before they hit you.'
+tags: ['Azure', 'AI', 'OpenAI', 'Production', 'AIEngineering']
+postType: ai
+featured: true
+authors: ['NVN']
+membersOnly: false
+draft: false
+coverImage: '/images/blog/ai-series/01-production-ai-on-azure.svg'
+---
+
+Deploying Azure OpenAI in a demo is easy.
+
+Running it in production — under real load, with real users, real cost budgets — is a completely different problem.
+
+Here are the seven things that actually break, and how to handle each one before your users find them first.
+
+---
+
+## 1. Rate Limits Hit Without Warning
+
+Azure OpenAI enforces two types of limits: **tokens per minute (TPM)** and **requests per minute (RPM)**. In a demo, you never hit them. In production, you hit both.
+
+The default for GPT-4o is 80K TPM. A single RAG request with a full document chunk in context can consume 6–8K tokens. Under moderate load, you exhaust your quota in under 10 minutes.
+
+**What breaks:** HTTP 429 errors surface as unhandled exceptions in most app code. Users see errors. Retries amplify the problem.
+
+**Fix:**
+```python
+from openai import AzureOpenAI
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+import openai
+
+@retry(
+    retry=retry_if_exception_type(openai.RateLimitError),
+    wait=wait_exponential(multiplier=1, min=4, max=60),
+    stop=stop_after_attempt(5)
+)
+def call_azure_openai(client: AzureOpenAI, messages: list) -> str:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        max_tokens=1024,
+    )
+    return response.choices[0].message.content
+```
+
+Request a TPM increase from Microsoft immediately after your first production load test — approvals take 3–5 business days.
+
+---
+
+## 2. Context Windows Fill Up Fast
+
+GPT-4o has a 128K token context window. You probably thought: plenty of room.
+
+In practice, you fill it with:
+- A long system prompt (1–2K tokens)
+- Retrieved RAG chunks (4–8K tokens)
+- Conversation history (grows unboundedly)
+- Output tokens (billed separately)
+
+Multi-turn conversations hit the limit faster than any single request. By turn 10 in a chat session, you're routinely over 64K tokens per request.
+
+**What breaks:** The API returns a `context_length_exceeded` error. Or worse — with older models, it silently truncates and gives a nonsensical answer.
+
+**Fix:** Implement sliding window memory with summarization:
+
+```python
+MAX_HISTORY_TOKENS = 12000
+
+def trim_history(messages: list[dict], tokenizer) -> list[dict]:
+    system = [m for m in messages if m["role"] == "system"]
+    conversation = [m for m in messages if m["role"] != "system"]
+    
+    total = sum(len(tokenizer.encode(m["content"])) for m in conversation)
+    while total > MAX_HISTORY_TOKENS and len(conversation) > 2:
+        removed = conversation.pop(0)
+        total -= len(tokenizer.encode(removed["content"]))
+    
+    return system + conversation
+```
+
+For long sessions, summarize the old history every N turns instead of dropping it cold.
+
+---
+
+## 3. Latency Is Inconsistent at P99
+
+Your average response time looks fine — 800ms. Then your P99 is 12 seconds. Users filing bug reports.
+
+Azure OpenAI latency varies significantly based on:
+- Model load on Microsoft's backend
+- Input token count (more tokens = slower time-to-first-token)
+- Geographic region and nearest deployment
+
+**Fix:** Stream responses to hide latency:
+
+```typescript
+const stream = await client.chat.completions.create({
+  model: 'gpt-4o',
+  messages,
+  stream: true,
+})
+
+for await (const chunk of stream) {
+  const delta = chunk.choices[0]?.delta?.content ?? ''
+  if (delta) process.stdout.write(delta)  // or push to SSE
+}
+```
+
+Streaming gives users visible progress from 200ms instead of waiting 8 seconds for a complete response. It also reduces perceived latency by 70%+ even when actual generation time is identical.
+
+---
+
+## 4. Cost Spikes From Runaway Prompts
+
+A single large document accidentally included in context can cost $0.30 per request. At 1,000 requests per day, that's $3,000/month from one misconfigured chunk.
+
+**What breaks:** No warning before you see the Azure invoice.
+
+**Fix:** Add hard token guards in your prompt assembly:
+
+```python
+import tiktoken
+
+def estimate_tokens(text: str, model: str = "gpt-4o") -> int:
+    enc = tiktoken.encoding_for_model(model)
+    return len(enc.encode(text))
+
+def build_prompt(system: str, context_chunks: list[str], user_query: str) -> list[dict]:
+    MAX_CONTEXT_TOKENS = 6000
+    
+    truncated_chunks = []
+    running_total = 0
+    for chunk in context_chunks:
+        chunk_tokens = estimate_tokens(chunk)
+        if running_total + chunk_tokens > MAX_CONTEXT_TOKENS:
+            break
+        truncated_chunks.append(chunk)
+        running_total += chunk_tokens
+    
+    context = "\n\n".join(truncated_chunks)
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {user_query}"}
+    ]
+```
+
+Set Azure Cost Alerts at 50%, 80%, and 100% of your monthly budget. Set them before you need them.
+
+---
+
+## 5. Multi-Region Failover Doesn't Just Happen
+
+Azure OpenAI is not globally load-balanced. If your `eastus` deployment hits an outage, your app is down — unless you built explicit failover.
+
+**Fix:** Deploy to two regions and fail over at the client:
+
+```python
+ENDPOINTS = [
+    {"url": "https://your-eastus.openai.azure.com", "key": "...", "region": "eastus"},
+    {"url": "https://your-swedencentral.openai.azure.com", "key": "...", "region": "swedencentral"},
+]
+
+def get_client_with_failover() -> AzureOpenAI:
+    for endpoint in ENDPOINTS:
+        try:
+            client = AzureOpenAI(
+                azure_endpoint=endpoint["url"],
+                api_key=endpoint["key"],
+                api_version="2024-08-01-preview"
+            )
+            client.models.list()  # health check
+            return client
+        except Exception:
+            continue
+    raise RuntimeError("All Azure OpenAI endpoints unavailable")
+```
+
+Use Azure API Management's retry and load-balance policies to handle this at the gateway layer instead of embedding it in every app.
+
+---
+
+## 6. Embeddings and Chat Models Get Out of Sync
+
+You generate embeddings with `text-embedding-ada-002`. Six months later, you update to `text-embedding-3-large` for better recall. Your retrieval starts returning garbage — documents embedded with the old model don't match queries embedded with the new one.
+
+**What breaks:** Search results degrade silently. No errors, just wrong answers.
+
+**Fix:** Store the embedding model version alongside every vector in your index:
+
+```python
+# When indexing
+document = {
+    "id": doc_id,
+    "content": text,
+    "embedding": embed(text, model="text-embedding-3-large"),
+    "embedding_model": "text-embedding-3-large",  # always store this
+    "indexed_at": datetime.utcnow().isoformat()
+}
+
+# When querying — validate model consistency
+def search(query: str, index_client, expected_model: str = "text-embedding-3-large"):
+    query_embedding = embed(query, model=expected_model)
+    # check index stats to verify most docs use expected_model before querying
+    ...
+```
+
+When upgrading embedding models, re-index **all** documents before deploying the new query path.
+
+---
+
+## 7. No Visibility Into What the Model Is Actually Doing
+
+Production deployments need the same observability as any other service — but most teams don't add it until after the first major incident.
+
+**Add from day one:**
+
+```python
+import time
+import logging
+
+def traced_completion(client, messages, request_id: str):
+    start = time.perf_counter()
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+        )
+        elapsed = time.perf_counter() - start
+        logging.info({
+            "event": "ai_completion",
+            "request_id": request_id,
+            "latency_ms": round(elapsed * 1000),
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens,
+            "total_tokens": response.usage.total_tokens,
+            "finish_reason": response.choices[0].finish_reason,
+        })
+        return response
+    except Exception as e:
+        logging.error({"event": "ai_completion_error", "request_id": request_id, "error": str(e)})
+        raise
+```
+
+Ship these logs to Azure Monitor or Application Insights from day one. You'll need them within the first month.
+
+---
+
+## Checklist Before Going to Production
+
+| Item | Done? |
+|------|-------|
+| Retry logic with backoff on 429 errors | |
+| Context window guard (token counting) | |
+| Streaming responses enabled | |
+| Cost alerts set at 50/80/100% | |
+| Multi-region failover configured | |
+| Embedding model version stored with vectors | |
+| Request tracing and token logging | |
+| TPM increase request filed | |
+
+Production AI on Azure is not hard. It just has a different set of problems than your laptop. Fix these seven before launch and you'll save yourself two months of production incidents.

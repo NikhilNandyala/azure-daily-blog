@@ -4,6 +4,7 @@ import 'css/highlight.css'
 import { notFound } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import Image from 'next/image'
 import Link from '@/components/Link'
 import SectionContainer from '@/components/SectionContainer'
 import { getAllPosts, getPostBySlug } from '@/lib/content'
@@ -35,6 +36,7 @@ export async function generateMetadata(
       description: post.summary,
       type: 'article',
       publishedTime: post.date,
+      ...(post.coverImage && { images: [{ url: post.coverImage, width: 1200, height: 630 }] }),
     },
   }
 }
@@ -102,6 +104,20 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
             margin: '0 auto',
           }}
         >
+          {/* Cover image */}
+          {post.coverImage && (
+            <div style={{ margin: '-40px -48px 32px', borderRadius: '15px 15px 0 0', overflow: 'hidden', height: '320px' }}>
+              <Image
+                src={post.coverImage}
+                alt={post.title}
+                width={900}
+                height={320}
+                priority
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            </div>
+          )}
+
           {/* Post header */}
           <header className="border-b border-white/6 py-6">
             <div className="mb-6">

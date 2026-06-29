@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050d1a"/>
+      <stop offset="100%" style="stop-color:#0a1628"/>
+    </linearGradient>
+    <linearGradient id="accent1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#c8860a;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#f0a500;stop-opacity:0.6"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="40"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <ellipse cx="900" cy="200" rx="350" ry="280" fill="#f472b6" fill-opacity="0.08" filter="url(#blur)"/>
+  <rect x="0" y="0" width="1200" height="5" fill="url(#accent1)"/>
+  <line x1="0" y1="100" x2="1200" y2="100" stroke="#c8860a" stroke-opacity="0.06" stroke-width="1"/>
+  <line x1="0" y1="530" x2="1200" y2="530" stroke="#c8860a" stroke-opacity="0.06" stroke-width="1"/>
+  <!-- Badge -->
+  <rect x="80" y="140" width="90" height="28" rx="14" fill="#f472b6" fill-opacity="0.15" stroke="#f472b6" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="125" y="159" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#f9a8d4" letter-spacing="0.08em">AI</text>
+  <text x="80" y="224" font-family="system-ui, -apple-system, monospace" font-size="13" fill="#c8860a" fill-opacity="0.6" letter-spacing="0.12em">05 —</text>
+  <text x="80" y="290" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#f5f0e8" letter-spacing="-0.02em">AI Observability</text>
+  <text x="80" y="350" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#c8860a" letter-spacing="-0.02em">4 Signals</text>
+  <text x="80" y="408" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#a89060" letter-spacing="0.01em">You Are Not Tracking</text>
+  <line x1="80" y1="450" x2="480" y2="450" stroke="#c8860a" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="80" y="478" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#7a6a4a" letter-spacing="0.06em">AZUREFIXES.COM</text>
+  <!-- Signal bars -->
+  <rect x="950" y="360" width="20" height="80" rx="3" fill="#c8860a" fill-opacity="0.7"/>
+  <rect x="980" y="320" width="20" height="120" rx="3" fill="#c8860a" fill-opacity="0.5"/>
+  <rect x="1010" y="280" width="20" height="160" rx="3" fill="#c8860a" fill-opacity="0.4"/>
+  <rect x="1040" y="300" width="20" height="140" rx="3" fill="#f472b6" fill-opacity="0.5"/>
+  <rect x="1070" y="240" width="20" height="200" rx="3" fill="#f472b6" fill-opacity="0.4"/>
+  <rect x="1100" y="260" width="20" height="180" rx="3" fill="#c8860a" fill-opacity="0.6"/>
+  <rect x="1130" y="330" width="20" height="110" rx="3" fill="#c8860a" fill-opacity="0.5"/>
+  <line x1="940" y1="445" x2="1160" y2="445" stroke="#c8860a" stroke-opacity="0.2" stroke-width="1"/>
+</svg>

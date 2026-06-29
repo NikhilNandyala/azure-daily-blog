@@ -1,0 +1,215 @@
+---
+title: 'Prompt Engineering on Azure: How to Version Your Prompts'
+date: '2026-03-04'
+summary: 'Prompts are code. They need version control, testing, deployment pipelines, and rollback strategies. Most teams treat them like config files and wonder why their AI quality is inconsistent. Here is how to manage prompts properly.'
+tags: ['Azure', 'AI', 'Prompts', 'AIEngineering', 'DevOps']
+postType: tutorial
+featured: false
+authors: ['NVN']
+membersOnly: false
+draft: false
+coverImage: '/images/blog/ai-series/06-prompt-versioning.svg'
+---
+
+Prompts are code.
+
+They determine how your AI system behaves. A one-word change can shift responses from correct to wrong, from safe to problematic, from helpful to verbose. And unlike application code, prompt changes are invisible to most observability systems.
+
+Most teams treat prompts like config files — edit in production, hope for the best. Here's how to manage them properly.
+
+---
+
+## Why Prompt Versioning Breaks Down
+
+The typical path of prompt management:
+
+1. Developer hardcodes prompt in Python file during prototyping
+2. Prompt works, feature ships, prompt stays in code
+3. Six months later, someone "just tweaks the wording" in a hot patch
+4. AI quality degrades, nobody knows why because nothing was tracked
+5. Team spends two weeks debugging before finding the prompt change
+
+The problem isn't that prompts changed. The problem is that nobody can trace which change caused the quality drop, and there's no way to roll back to the version that was working.
+
+---
+
+## Azure App Configuration: The Right Store for Prompts
+
+Azure App Configuration is designed for dynamic configuration at scale. It supports:
+- **Labels**: tag configs as `dev`, `staging`, `production`
+- **Key vault references**: store API keys as references, not values
+- **Versioning**: every change creates a new snapshot, with point-in-time restore
+- **Feature flags**: gate prompt variants by user segment or percentage rollout
+
+```bash
+# Create App Configuration resource
+az appconfig create \
+  --name azurefixes-ai-config \
+  --resource-group rg-ai \
+  --location eastus \
+  --sku Standard
+
+# Store your system prompt with label and content type
+az appconfig kv set \
+  --name azurefixes-ai-config \
+  --key "prompts:chatbot:system" \
+  --value "You are a helpful Azure technical assistant. Answer based only on the provided context. If the context does not contain the answer, say so clearly." \
+  --label production \
+  --content-type "text/plain"
+```
+
+**Reading prompts in Python:**
+
+```python
+from azure.appconfiguration import AzureAppConfigurationClient
+from azure.identity import DefaultAzureCredential
+
+class PromptStore:
+    def __init__(self, endpoint: str):
+        self.client = AzureAppConfigurationClient(
+            base_url=endpoint,
+            credential=DefaultAzureCredential()
+        )
+    
+    def get(self, key: str, label: str = "production") -> str:
+        setting = self.client.get_configuration_setting(key=key, label=label)
+        return setting.value
+    
+    def list_versions(self, key: str) -> list[dict]:
+        # Use revision history to see all versions
+        revisions = self.client.list_revisions(key_filter=key)
+        return [
+            {"etag": r.etag, "last_modified": r.last_modified, "value": r.value}
+            for r in revisions
+        ]
+
+store = PromptStore(endpoint="https://azurefixes-ai-config.azconfig.io")
+system_prompt = store.get("prompts:chatbot:system")
+```
+
+---
+
+## Semantic Versioning for Prompts
+
+Treat prompt changes the same way you'd treat API changes:
+
+- **Patch** (1.0.0 → 1.0.1): Typo fix, rephrasing, no behavior change expected
+- **Minor** (1.0.0 → 1.1.0): New instruction added, behavior expected to improve
+- **Major** (1.0.0 → 2.0.0): Structural change, persona change, expected behavior difference
+
+Store the version alongside the prompt:
+
+```python
+# Prompt metadata stored as separate config keys
+store.set("prompts:chatbot:system:version", "1.2.0", label="production")
+store.set("prompts:chatbot:system:changed_by", "nvn@azurefixes.com", label="production")
+store.set("prompts:chatbot:system:change_reason", "Added instruction to cite source documents", label="production")
+```
+
+Log the prompt version with every request:
+
+```python
+def call_ai(query: str, context: list[str]) -> str:
+    prompt_version = store.get("prompts:chatbot:system:version")
+    system_prompt = store.get("prompts:chatbot:system")
+    
+    response = client.chat.completions.create(...)
+    
+    logging.info({
+        "event": "ai_request",
+        "prompt_version": prompt_version,
+        "request_id": str(uuid4()),
+        ...
+    })
+```
+
+Now when quality drops, you can correlate the drop with a specific prompt version change.
+
+---
+
+## A/B Testing Prompts
+
+Azure App Configuration's feature flags support percentage rollouts — exactly what you need for A/B testing prompt variants.
+
+```bash
+# Create a feature flag for prompt variant
+az appconfig feature set \
+  --name azurefixes-ai-config \
+  --feature "new-system-prompt" \
+  --description "Testing more concise system prompt variant"
+
+# Enable for 20% of requests
+az appconfig feature filter add \
+  --name azurefixes-ai-config \
+  --feature "new-system-prompt" \
+  --filter-name Microsoft.Percentage \
+  --filter-parameters '{"Value": "20"}'
+```
+
+**In your application:**
+
+```python
+from azure.appconfiguration.provider import load
+
+config = load(
+    endpoint="https://azurefixes-ai-config.azconfig.io",
+    credential=DefaultAzureCredential(),
+    feature_flag_enabled=True
+)
+
+def get_system_prompt(user_id: str) -> tuple[str, str]:
+    # Feature flag evaluates per-user percentage roll
+    if config.feature_manager.is_enabled("new-system-prompt"):
+        prompt = store.get("prompts:chatbot:system", label="variant-b")
+        variant = "b"
+    else:
+        prompt = store.get("prompts:chatbot:system", label="production")
+        variant = "a"
+    
+    return prompt, variant
+```
+
+Log the variant with every response. After 1,000 requests, compare:
+- Average groundedness score by variant
+- User thumbs-up/down rate by variant
+- Average completion tokens (shorter = often better, sometimes worse)
+
+---
+
+## Rollback Strategy
+
+The most important operational capability: being able to roll back a prompt change in under five minutes.
+
+```bash
+# List revision history for a prompt key
+az appconfig revision list \
+  --name azurefixes-ai-config \
+  --key "prompts:chatbot:system" \
+  --label production
+
+# Restore to a previous revision using its etag
+az appconfig kv set \
+  --name azurefixes-ai-config \
+  --key "prompts:chatbot:system" \
+  --value "$(az appconfig revision list --name azurefixes-ai-config --key prompts:chatbot:system --label production --query '[1].value' -o tsv)" \
+  --label production
+```
+
+Alternatively, store a `prompts:chatbot:system:backup` key with the last known-good version. Roll back by copying it to the active key.
+
+---
+
+## The Prompt Change Process
+
+Before any prompt change ships to production:
+
+1. **Write the change** and the reason for it
+2. **Run your eval suite** on the new prompt (50+ test cases)
+3. **Compare scores** — groundedness, relevance, response length
+4. **Deploy to staging** with label `staging`, test with real queries
+5. **Gradual rollout** — 5% production traffic for 24 hours, monitor metrics
+6. **Full rollout** or rollback based on signal
+
+A prompt that passes this process ships with confidence. A prompt that bypasses it ships with risk.
+
+The teams that ship AI products that get better over time are the teams that treat prompts like code.

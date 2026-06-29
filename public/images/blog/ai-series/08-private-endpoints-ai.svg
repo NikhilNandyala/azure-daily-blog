@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050d1a"/>
+      <stop offset="100%" style="stop-color:#0a1628"/>
+    </linearGradient>
+    <linearGradient id="accent1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#c8860a;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#f0a500;stop-opacity:0.6"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="40"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <ellipse cx="900" cy="200" rx="350" ry="280" fill="#f87171" fill-opacity="0.07" filter="url(#blur)"/>
+  <rect x="0" y="0" width="1200" height="5" fill="url(#accent1)"/>
+  <line x1="0" y1="100" x2="1200" y2="100" stroke="#c8860a" stroke-opacity="0.06" stroke-width="1"/>
+  <line x1="0" y1="530" x2="1200" y2="530" stroke="#c8860a" stroke-opacity="0.06" stroke-width="1"/>
+  <!-- Badge: troubleshooting -->
+  <rect x="80" y="140" width="175" height="28" rx="14" fill="#f87171" fill-opacity="0.15" stroke="#f87171" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="167" y="159" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#fca5a5" letter-spacing="0.08em">TROUBLESHOOTING</text>
+  <text x="80" y="224" font-family="system-ui, -apple-system, monospace" font-size="13" fill="#c8860a" fill-opacity="0.6" letter-spacing="0.12em">08 —</text>
+  <text x="80" y="290" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#f5f0e8" letter-spacing="-0.02em">Private Endpoints</text>
+  <text x="80" y="350" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="800" fill="#f5f0e8" letter-spacing="-0.02em">for Azure OpenAI</text>
+  <text x="80" y="408" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#a89060" letter-spacing="0.01em">The Gotchas Nobody Warns You About</text>
+  <line x1="80" y1="450" x2="480" y2="450" stroke="#c8860a" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="80" y="478" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#7a6a4a" letter-spacing="0.06em">AZUREFIXES.COM</text>
+  <!-- Network diagram -->
+  <rect x="940" y="230" width="80" height="50" rx="6" fill="none" stroke="#c8860a" stroke-opacity="0.4" stroke-width="1.5"/>
+  <text x="980" y="260" text-anchor="middle" font-family="monospace" font-size="11" fill="#f0a500" fill-opacity="0.7">App</text>
+  <line x1="1020" y1="255" x2="1060" y2="255" stroke="#c8860a" stroke-opacity="0.4" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <rect x="1060" y="230" width="100" height="50" rx="6" fill="none" stroke="#f87171" stroke-opacity="0.4" stroke-width="1.5"/>
+  <text x="1110" y="260" text-anchor="middle" font-family="monospace" font-size="10" fill="#fca5a5" fill-opacity="0.7">Private EP</text>
+  <line x1="1110" y1="280" x2="1110" y2="310" stroke="#f87171" stroke-opacity="0.4" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <rect x="1060" y="310" width="100" height="50" rx="6" fill="none" stroke="#c8860a" stroke-opacity="0.4" stroke-width="1.5"/>
+  <text x="1110" y="340" text-anchor="middle" font-family="monospace" font-size="10" fill="#f0a500" fill-opacity="0.7">OpenAI</text>
+  <!-- DNS label -->
+  <text x="1060" y="420" font-family="monospace" font-size="11" fill="#f87171" fill-opacity="0.6">DNS: 10.x.x.x ✓</text>
+  <text x="1060" y="438" font-family="monospace" font-size="11" fill="#fca5a5" fill-opacity="0.4">DNS: 52.x.x.x ✗</text>
+</svg>

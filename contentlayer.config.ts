@@ -112,6 +112,7 @@ export const Blog = defineDocumentType(() => ({
     featured: { type: 'boolean', default: false },
     pinned: { type: 'boolean', default: false },
     membersOnly: { type: 'boolean', default: false },
+    coverImage: { type: 'string', required: false },
     postType: {
       type: 'enum',
       options: ['troubleshooting', 'tutorial', 'architecture', 'devops', 'news', 'ai'],

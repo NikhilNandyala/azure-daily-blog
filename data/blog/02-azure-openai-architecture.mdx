@@ -1,0 +1,219 @@
+---
+title: 'Azure OpenAI Reference Architecture: 3 Deployment Topologies'
+date: '2026-01-08'
+summary: 'Not every Azure OpenAI deployment should look the same. Direct API, APIM gateway, and private VNet topologies each solve a different set of requirements. Here is when to use each one.'
+tags: ['Azure', 'AI', 'OpenAI', 'Architecture', 'APIM']
+postType: architecture
+featured: true
+authors: ['NVN']
+membersOnly: false
+draft: false
+coverImage: '/images/blog/ai-series/02-azure-openai-architecture.svg'
+---
+
+Not every Azure OpenAI deployment looks the same.
+
+A startup building an internal chatbot has completely different requirements than an enterprise running AI-assisted workflows across 50 business units. The topology you choose determines your security posture, cost visibility, operational complexity, and how well you can scale.
+
+Here are the three architectures I see deployed most often, when each one makes sense, and the tradeoffs nobody tells you about.
+
+---
+
+## Topology 1: Direct API
+
+The simplest possible deployment. Your application calls Azure OpenAI directly.
+
+```
+App Service / AKS
+      |
+      | HTTPS (API Key in header)
+      ↓
+Azure OpenAI Endpoint
+(eastus region)
+```
+
+**When to use this:**
+- Single application or team
+- Early-stage product, moving fast
+- Internal tools where security requirements are basic
+- Less than $2,000/month in estimated spend (low enough that a single quota is fine)
+
+**What you get:**
+- Zero infrastructure overhead
+- Single endpoint, single API key
+- No latency added by intermediate layers
+- Easy to debug (no middleman)
+
+**What you lose:**
+- No rate limiting per team or per user
+- No request logging beyond what Azure provides
+- No failover if the region has an outage
+- No cost visibility per application or cost center
+
+**The most common mistake:** Using a single API key shared across multiple applications. When you hit a rate limit, you can't tell which app caused it. Rotate one key and you break all apps.
+
+**Fix:** One Azure OpenAI resource per major application. Separate managed identities instead of API keys where possible.
+
+---
+
+## Topology 2: Azure API Management Gateway
+
+APIM sits in front of one or more Azure OpenAI endpoints and handles everything you'd otherwise build yourself.
+
+```
+App A ──┐
+App B ──┼──→ Azure API Management ──→ Azure OpenAI (eastus)
+App C ──┘         │                         │
+                  │                    Fallback if 429
+                  │                         ↓
+             Log Analytics            Azure OpenAI (swedencentral)
+             Cost Tracking
+             Rate Limits per App
+```
+
+**When to use this:**
+- Multiple teams or applications sharing AI capacity
+- Need per-consumer rate limiting
+- Compliance requires request logging
+- Cost allocation across business units
+- Want load balancing or regional failover
+
+**APIM backend policy for OpenAI failover:**
+
+```xml
+<backend>
+  <retry condition="@(context.Response.StatusCode == 429 || context.Response.StatusCode >= 500)"
+         count="2" interval="2" delta="2" first-fast-retry="false">
+    <choose>
+      <when condition="@(context.Variables.GetValueOrDefault<int>("backendIndex") == 0)">
+        <set-variable name="backendIndex" value="1" />
+        <set-backend-service base-url="https://your-swedencentral.openai.azure.com" />
+      </when>
+      <otherwise>
+        <set-variable name="backendIndex" value="0" />
+        <set-backend-service base-url="https://your-eastus.openai.azure.com" />
+      </otherwise>
+    </choose>
+  </retry>
+</backend>
+```
+
+**Per-subscription rate limiting:**
+
+```xml
+<inbound>
+  <rate-limit-by-key calls="100" renewal-period="60"
+    counter-key="@(context.Subscription.Id)"
+    increment-condition="@(context.Response.StatusCode == 200)" />
+</inbound>
+```
+
+**APIM cost tradeoff:**
+- Developer tier: $0/month but no SLA, no production use
+- Basic tier: ~$50/month
+- Standard tier: ~$300/month (needed for VNet integration)
+- Premium: $3,000+/month (needed for multi-region with private endpoints)
+
+For most teams with 3–10 apps, APIM Standard tier is the right call.
+
+---
+
+## Topology 3: Private Endpoint + VNet
+
+Everything stays off the public internet. Azure OpenAI is accessible only from within your VNet (or connected networks via ExpressRoute/VPN).
+
+```
+On-Premises / Corp Network
+      |
+  ExpressRoute / VPN Gateway
+      |
+  Azure Hub VNet
+      |   ├── Spoke VNet A (App Teams)
+      |   │        └── App Service (VNet Integration)
+      |   │                  │
+      |   └── Spoke VNet B (Platform)
+      |              └── Private DNS Zone
+      |                   openai.azure.com → 10.x.x.x
+      ↓
+  Private Endpoint
+  (Azure OpenAI)
+  10.x.x.x:443
+```
+
+**When you need this:**
+- Regulated industry (healthcare, finance, government)
+- Data residency or sovereignty requirements
+- Policy prohibits traffic over public internet
+- ExpressRoute-connected Azure environment
+
+**The DNS gotcha that breaks 80% of first deployments:**
+
+When you create a Private Endpoint for Azure OpenAI, the FQDN `yourresource.openai.azure.com` must resolve to the private IP — but only from within your VNet.
+
+If DNS resolves to the public IP, traffic bypasses the private endpoint entirely. The request still works but goes over public internet — which defeats the entire point.
+
+**Fix:** Create a Private DNS Zone and link it to all VNets that need access:
+
+```bash
+# Create the private DNS zone
+az network private-dns zone create \
+  --resource-group rg-networking \
+  --name "privatelink.openai.azure.com"
+
+# Link to your VNet
+az network private-dns link vnet create \
+  --resource-group rg-networking \
+  --zone-name "privatelink.openai.azure.com" \
+  --name link-hub-vnet \
+  --virtual-network hub-vnet \
+  --registration-enabled false
+
+# Create DNS record for the private endpoint
+az network private-endpoint dns-zone-group create \
+  --resource-group rg-ai \
+  --endpoint-name pe-openai \
+  --name openai-dns-group \
+  --private-dns-zone "privatelink.openai.azure.com" \
+  --zone-name openai
+```
+
+After this, `nslookup yourresource.openai.azure.com` from inside the VNet should return a `10.x.x.x` address, not a public IP.
+
+**Outbound rule requirement:** If your App Service or AKS uses VNet integration, confirm the NSG on the subnet allows outbound HTTPS (port 443) to your private endpoint subnet. Missing this rule causes silent failures — the TCP handshake never completes but no useful error is logged.
+
+---
+
+## Choosing the Right Topology
+
+| Requirement | Direct API | APIM Gateway | Private VNet |
+|-------------|-----------|--------------|--------------|
+| Fastest to deploy | ✓ | | |
+| Per-app rate limiting | | ✓ | ✓ |
+| Cost allocation per team | | ✓ | ✓ |
+| Multi-region failover | | ✓ | ✓ |
+| No public internet | | | ✓ |
+| Compliance / regulated | | | ✓ |
+| Shared capacity management | | ✓ | ✓ |
+| Monthly cost overhead | None | $50–300 | VNet + PE costs |
+
+**Decision tree:**
+
+1. Are you in a regulated industry or have public internet restrictions? → **Private VNet**
+2. Do you have 3+ teams sharing OpenAI capacity? → **APIM Gateway**
+3. Are you early-stage, single team, moving fast? → **Direct API** (migrate to APIM when you have 2+ apps)
+
+Most enterprise deployments end up at Topology 3 overlaid with Topology 2 — APIM deployed inside the VNet, sitting in front of private endpoints. You get rate limiting, logging, and failover — all without any public internet exposure.
+
+---
+
+## What to Do Next
+
+If you're on Direct API today and want to migrate to APIM without breaking existing apps:
+
+1. Deploy APIM with the same backend (your existing OpenAI endpoint)
+2. Update one app to point at APIM instead of OpenAI directly
+3. Validate behavior and logs
+4. Migrate remaining apps one at a time
+5. Revoke direct API keys once all apps route through APIM
+
+The migration takes a day. The operational improvements last years.

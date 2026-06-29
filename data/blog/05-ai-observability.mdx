@@ -1,0 +1,229 @@
+---
+title: 'AI Observability: The 4 Signals You Are Not Tracking'
+date: '2026-02-18'
+summary: 'Most teams instrument their AI apps with latency and error rate dashboards. Those are necessary but not sufficient. The failures that hurt production AI are invisible to standard APM tooling. Here are the four signals that actually matter.'
+tags: ['Azure', 'AI', 'Observability', 'OpenAI', 'MLOps']
+postType: ai
+featured: false
+authors: ['NVN']
+membersOnly: false
+draft: false
+coverImage: '/images/blog/ai-series/05-ai-observability.svg'
+---
+
+You've added latency monitoring. You have error rate alerts. You're using Application Insights.
+
+And your AI system is still silently degrading.
+
+The problem: standard APM tooling was designed for deterministic software. AI systems fail in non-deterministic ways that those tools can't detect. Here are the four signals that will show you what's actually happening.
+
+---
+
+## Signal 1: Token Drift
+
+Token usage is not just a cost metric. It's a quality signal.
+
+When your average prompt token count increases over time without a corresponding increase in queries, something changed in your context assembly. Common causes:
+- Longer documents being indexed
+- Conversation history accumulating more turns than expected
+- A bug in context trimming logic
+- System prompt expanded by another developer
+
+When token counts drop unexpectedly:
+- Context trimming is cutting too aggressively
+- A bug is dropping chunks before they reach the prompt
+- Retrieval is returning fewer results than expected
+
+**What to track:**
+
+```python
+import logging
+from dataclasses import dataclass
+
+@dataclass
+class TokenMetrics:
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    context_chunks: int
+    conversation_turns: int
+    timestamp: str
+
+def log_token_metrics(response, context_chunks: int, conversation_turns: int):
+    metrics = TokenMetrics(
+        prompt_tokens=response.usage.prompt_tokens,
+        completion_tokens=response.usage.completion_tokens,
+        total_tokens=response.usage.total_tokens,
+        context_chunks=context_chunks,
+        conversation_turns=conversation_turns,
+        timestamp=datetime.utcnow().isoformat()
+    )
+    logging.info({"event": "token_metrics", **vars(metrics)})
+```
+
+Alert on:
+- 7-day rolling average prompt tokens increases by >20%
+- Single request exceeds 80% of your context limit
+- Completion tokens consistently near `max_tokens` (model may be truncating)
+
+---
+
+## Signal 2: Latency Percentiles, Not Averages
+
+Your average latency is 900ms. Looks fine.
+
+Your P95 is 8 seconds. P99 is 22 seconds.
+
+Those tail latencies represent real users staring at a spinner for 22 seconds. Average latency hides this completely.
+
+Azure OpenAI latency has a fat tail because:
+- Backend model servers under load spike unpredictably
+- Large prompt tokens increase time-to-first-token significantly
+- Streaming helps perceived latency but not actual generation time
+
+**What to track:**
+
+```python
+import time
+from collections import defaultdict
+import statistics
+
+latency_samples = defaultdict(list)
+
+def traced_call(model: str, prompt_tokens: int):
+    def decorator(fn):
+        def wrapper(*args, **kwargs):
+            start = time.perf_counter()
+            result = fn(*args, **kwargs)
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            
+            bucket = f"{(prompt_tokens // 1000) * 1000}k_tokens"
+            latency_samples[bucket].append(elapsed_ms)
+            
+            logging.info({
+                "event": "ai_latency",
+                "model": model,
+                "latency_ms": round(elapsed_ms),
+                "prompt_tokens": prompt_tokens,
+                "bucket": bucket,
+            })
+            return result
+        return wrapper
+    return decorator
+```
+
+In Azure Monitor, create custom metrics queries:
+
+```kusto
+customMetrics
+| where name == "ai_latency_ms"
+| summarize
+    p50=percentile(value, 50),
+    p95=percentile(value, 95),
+    p99=percentile(value, 99),
+    avg=avg(value)
+  by bin(timestamp, 1h)
+| project timestamp, p50, p95, p99, avg
+```
+
+Alert on P95 > 5s, not on average > 2s. Averages always look good until they don't.
+
+---
+
+## Signal 3: Cache Hit Ratio
+
+Azure OpenAI supports **prompt caching** — if you send the exact same prefix in multiple requests, the model charges reduced rates for the cached portion. More importantly, cached prompts respond faster (by up to 50%).
+
+Most teams don't know their cache hit ratio — so they can't tell whether prompt design is cache-friendly.
+
+**Signs of poor caching:**
+- System prompt changes frequently (kills cache hits)
+- Retrieved chunks are injected at the beginning of the prompt (different chunks = different cache)
+- User name or timestamp injected early in the prompt
+
+**Design for caching:**
+
+```python
+# BAD: User context early kills caching
+messages = [
+    {"role": "system", "content": f"You are a helpful assistant for {user_name} at {datetime.now()}."},
+    {"role": "user", "content": f"Context:\n{retrieved_chunks}\n\nQuestion: {query}"}
+]
+
+# GOOD: Stable content first, dynamic content last
+messages = [
+    {"role": "system", "content": "You are a helpful assistant for AzureFixes users. Answer based on the provided context."},
+    # Stable retrieved context (from common documents — more cacheable)
+    {"role": "user", "content": f"Context:\n{retrieved_chunks}\n\nUser: {user_name}\nQuestion: {query}"}
+]
+```
+
+Azure OpenAI marks cached prompt tokens in the usage response:
+
+```python
+response = client.chat.completions.create(...)
+prompt_tokens_details = response.usage.prompt_tokens_details
+cached = prompt_tokens_details.cached_tokens if prompt_tokens_details else 0
+cache_hit_ratio = cached / response.usage.prompt_tokens
+logging.info({"cache_hit_ratio": cache_hit_ratio, "cached_tokens": cached})
+```
+
+Track this weekly. If your cache hit ratio is under 30%, your prompt design is costing you money and latency.
+
+---
+
+## Signal 4: Retrieval Quality Drift
+
+This is the most dangerous signal to miss because the failure mode is invisible.
+
+Retrieval quality drift happens when:
+- Your document corpus changes (new documents indexed differently)
+- Azure AI Search is re-indexed with different chunk sizes
+- Your embedding model is updated
+- Query patterns change (users ask different types of questions)
+
+The AI app continues to return responses. The responses look reasonable. But the retrieved chunks are gradually less relevant, and the model is silently filling the gap with hallucinations.
+
+**How to detect it:**
+
+Set up a golden dataset — 50–100 representative questions where you know which documents should be retrieved. Run this as a scheduled evaluation:
+
+```python
+def evaluate_retrieval(golden_set: list[dict], search_fn) -> dict:
+    results = []
+    for item in golden_set:
+        query = item["query"]
+        expected_doc_id = item["expected_doc_id"]
+        
+        retrieved = search_fn(query, top_k=5)
+        top_ids = [r["id"] for r in retrieved]
+        
+        hit_at_1 = expected_doc_id == top_ids[0] if top_ids else False
+        hit_at_5 = expected_doc_id in top_ids
+        
+        results.append({"hit_at_1": hit_at_1, "hit_at_5": hit_at_5})
+    
+    return {
+        "recall_at_1": sum(r["hit_at_1"] for r in results) / len(results),
+        "recall_at_5": sum(r["hit_at_5"] for r in results) / len(results),
+        "n": len(results),
+        "evaluated_at": datetime.utcnow().isoformat()
+    }
+```
+
+Run this evaluation daily in CI/CD. Alert if Recall@5 drops by more than 5 percentage points week-over-week.
+
+---
+
+## The Dashboard You Actually Need
+
+| Signal | Metric | Alert threshold |
+|--------|--------|----------------|
+| Token drift | 7-day avg prompt tokens | &gt;20% week-over-week increase |
+| Tail latency | P95 response time | &gt;5 seconds |
+| Cache efficiency | Cache hit ratio | &lt;30% for repeated user sessions |
+| Retrieval quality | Recall@5 on golden set | &lt;75% or &gt;5pp drop week-over-week |
+
+These four metrics catch 80% of production AI quality issues before users escalate them.
+
+Standard APM catches service health. These signals catch AI health. You need both.
