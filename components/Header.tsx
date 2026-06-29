@@ -8,6 +8,7 @@ import MobileNav from './MobileNav'
 import SearchButton from './SearchButton'
 import { useSession, signOut } from 'next-auth/react'
 import { useState, useRef, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 
 interface Post {
   slug: string
@@ -29,12 +30,7 @@ const Header = ({ posts }: HeaderProps) => {
   const { data: session, status } = useSession()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-
-  let headerClass =
-    'flex items-center w-full justify-between py-10 border-b'
-  if (siteMetadata.stickyNav) {
-    headerClass += ' sticky top-0 z-50'
-  }
+  const pathname = usePathname()
 
   const handleSignOut = () => {
     signOut({ callbackUrl: '/' })
@@ -47,127 +43,185 @@ const Header = ({ posts }: HeaderProps) => {
         setIsDropdownOpen(false)
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   return (
     <header
-      className={headerClass}
       style={{
-        background: 'rgba(5,13,26,0.8)',
-        borderColor: 'var(--border)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        borderBottom: '0.5px solid rgba(200,134,10,0.15)',
+        background: 'rgba(5,13,26,0.85)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
       }}
     >
-      <Link href="/" aria-label={siteMetadata.headerTitle}>
-        <div className="flex items-center justify-between">
-          <div
-            className="mr-3 overflow-hidden rounded-lg"
-            style={{ boxShadow: '0 0 20px var(--azure-glow)' }}
-          >
-            <Image src="/static/images/logo.png" alt="AzureFixes Logo" width={270} height={270} />
-          </div>
-        </div>
-      </Link>
-      <div className="flex items-center space-x-4 leading-5 sm:space-x-6">
-        <div className="no-scrollbar hidden max-w-40 items-center gap-x-4 overflow-x-auto sm:flex md:max-w-72 lg:max-w-96">
-          {headerNavLinks
-            .map((link) => (
-              <Link
-                key={link.title}
-                href={link.href}
-                className="m-1 text-lg font-medium transition-colors"
-                style={{ color: 'var(--muted)' }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.color = 'var(--muted)')
-                }
-              >
-                {link.title}
-              </Link>
-            ))}
-        </div>
-        <SearchButton posts={posts ?? []} />
-        {status === 'loading' ? (
-          <div className="h-8 w-20 animate-pulse rounded bg-[#374151]"></div>
-        ) : session ? (
-          <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="flex items-center space-x-2 rounded-full bg-[#1F2937] p-1 hover:bg-[#374151] focus:ring-2 focus:ring-[#38BDF8] focus:outline-none"
-              aria-label="User menu"
+      <div
+        style={{
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '0 36px',
+          height: '64px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '24px',
+        }}
+      >
+        {/* Compact logo + wordmark */}
+        <Link
+          href="/"
+          aria-label={siteMetadata.headerTitle}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            textDecoration: 'none',
+            flexShrink: 0,
+          }}
+        >
+          <Image
+            src="/static/images/logo.png"
+            alt="AzureFixes Logo"
+            width={36}
+            height={36}
+            style={{ borderRadius: '8px', objectFit: 'contain' }}
+          />
+          <div>
+            <div
+              style={{
+                fontSize: '15px',
+                fontWeight: 800,
+                color: '#ffeaa0',
+                letterSpacing: '0.04em',
+                lineHeight: 1,
+              }}
             >
-              {session.user?.image ? (
-                <Image
-                  src={session.user.image}
-                  alt={session.user.name || 'User avatar'}
-                  width={32}
-                  height={32}
-                  className="h-8 w-8 rounded-full"
-                  unoptimized
-                />
-              ) : (
-                <div className="bg-primary-500 flex h-8 w-8 items-center justify-center rounded-full text-white">
-                  <span className="text-sm font-medium">
-                    {session.user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                  </span>
+              AZUREFIXES
+            </div>
+            <div
+              style={{
+                fontSize: '9px',
+                color: '#6a5a3a',
+                letterSpacing: '0.08em',
+                marginTop: '2px',
+              }}
+            >
+              DEBUG FASTER. DEPLOY SMARTER.
+            </div>
+          </div>
+        </Link>
+
+        {/* Right side: nav links + search + user */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          {/* Nav links — desktop only */}
+          <nav className="no-scrollbar hidden items-center overflow-x-auto sm:flex" style={{ gap: '24px' }}>
+            {headerNavLinks.map((link) => {
+              const isActive =
+                pathname === link.href ||
+                (link.href !== '/' && pathname.startsWith(link.href))
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: isActive ? '#f0a500' : '#8a7a5a',
+                    textDecoration: 'none',
+                    transition: 'color .15s',
+                    borderBottom: isActive ? '1.5px solid #f0a500' : '1.5px solid transparent',
+                    paddingBottom: '2px',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) (e.currentTarget as HTMLElement).style.color = '#ffeaa0'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) (e.currentTarget as HTMLElement).style.color = '#8a7a5a'
+                  }}
+                >
+                  {link.title}
+                </Link>
+              )
+            })}
+          </nav>
+
+          {/* Search */}
+          <SearchButton posts={posts ?? []} />
+
+          {/* User dropdown — only when signed in */}
+          {status !== 'loading' && session && (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center space-x-2 rounded-full bg-[#1F2937] p-1 hover:bg-[#374151] focus:ring-2 focus:ring-[#38BDF8] focus:outline-none"
+                aria-label="User menu"
+              >
+                {session.user?.image ? (
+                  <Image
+                    src={session.user.image}
+                    alt={session.user.name || 'User avatar'}
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="bg-primary-500 flex h-8 w-8 items-center justify-center rounded-full text-white">
+                    <span className="text-sm font-medium">
+                      {session.user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                )}
+                <svg
+                  className={`text-muted h-4 w-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-md border border-white/6 bg-[#111827] py-1 shadow-lg">
+                  <div className="border-b border-white/6 px-4 py-2">
+                    <p className="text-body text-sm font-medium">{session.user?.name || 'User'}</p>
+                    <p className="text-muted text-xs">{session.user?.email}</p>
+                  </div>
+                  <Link
+                    href="/account"
+                    className="text-body block px-4 py-2 text-sm hover:bg-[#374151]"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    Account
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="text-body block w-full px-4 py-2 text-left text-sm hover:bg-[#374151]"
+                  >
+                    Sign out
+                  </button>
                 </div>
               )}
-              <svg
-                className={`text-muted h-4 w-4 transition-transform ${
-                  isDropdownOpen ? 'rotate-180' : ''
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
+            </div>
+          )}
 
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 rounded-md border border-white/6 bg-[#111827] py-1 shadow-lg">
-                <div className="border-b border-white/6 px-4 py-2">
-                  <p className="text-body text-sm font-medium">{session.user?.name || 'User'}</p>
-                  <p className="text-muted text-xs">{session.user?.email}</p>
-                </div>
-                <Link
-                  href="/account"
-                  className="text-body block px-4 py-2 text-sm hover:bg-[#374151]"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  Account
-                </Link>
-                <button
-                  onClick={handleSignOut}
-                  className="text-body block w-full px-4 py-2 text-left text-sm hover:bg-[#374151]"
-                >
-                  Sign out
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          // TEMPORARILY DISABLED — Login button hidden from public visitors.
-          // Re-enable below when membership launches.
-          // <Link href="/login" className="btn-azure rounded-md px-4 py-2 text-sm font-medium">Login</Link>
-          process.env.NODE_ENV === 'development' ? (
+          {/* Admin link — dev only; public Login button disabled
+              Re-enable: <Link href="/login" className="btn-azure ...">Login</Link> */}
+          {status !== 'loading' && !session && process.env.NODE_ENV === 'development' && (
             <Link href="/login" style={{ fontSize: '11px', color: '#6a5a3a' }}>
               Admin
             </Link>
-          ) : null
-        )}
-        <MobileNav />
+          )}
+
+          {/* Mobile nav */}
+          <MobileNav />
+        </div>
       </div>
     </header>
   )
