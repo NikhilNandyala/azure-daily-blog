@@ -1,0 +1,278 @@
+---
+title: 'AI Observability: When Everything Looks Healthy But AI Is Wrong'
+date: '2025-12-21'
+summary: 'Your AI app can fail even when nothing is technically broken. The server is healthy, the API is fast, the dashboards are green — but your chatbot still gives a completely wrong answer. That is the weird thing about GenAI systems.'
+tags: ['AI', 'GenerativeAI', 'LLM', 'AIEngineering', 'MLOps', 'Observability']
+postType: ai
+featured: true
+authors: ['NVN']
+membersOnly: false
+draft: false
+---
+
+Your AI app can fail… even when nothing is technically broken.
+
+The server is healthy.
+The API is fast.
+The dashboards are all green.
+
+But your chatbot still gives a completely wrong answer to a customer.
+
+And nobody notices.
+
+That's the weird thing about GenAI systems.
+
+In traditional software, failures are obvious:
+
+- APIs fail
+- Databases crash
+- Latency spikes
+
+But LLM apps fail differently.
+
+They can be fully online, fast, and technically "working"… and still be wrong.
+
+## What is AI Observability?
+
+AI observability helps teams understand **why** an AI system behaved a certain way.
+
+A patient asks:
+
+> Do I need to fast before tomorrow's blood test?
+
+The AI replies:
+
+> No fasting required.
+
+But fasting was mandatory.
+
+Nothing crashed.
+No alerts fired.
+Everything looked normal.
+
+Yet the answer was still wrong.
+
+---
+
+A key concept is a **Trace**.
+
+A trace is the full step-by-step journey of an AI request — from the user
+question, to retrieval, to model response, to the final answer.
+
+| Step | What happens |
+|------|-------------|
+| User sends question | Input captured |
+| Retrieval runs | Relevant chunks fetched from vector store |
+| Prompt assembled | Context + question combined |
+| LLM responds | Model generates answer |
+| Answer returned | User receives response |
+
+Every step is logged. Every step can be inspected.
+
+## Quality in AI Means
+
+Unlike traditional software where quality = uptime + latency, AI quality means:
+
+- **Useful answers** — does it actually help the user?
+- **Grounded responses** — is the answer based on retrieved context?
+- **Fewer hallucinations** — does the model invent facts?
+- **Safe outputs** — does it avoid harmful content?
+- **Consistent behavior** — does quality hold after prompt changes?
+
+These cannot be measured with CPU graphs or error rates.
+They require a completely different observability stack.
+
+## The Traditional vs AI Observability Gap
+
+Traditional monitoring tells you — server healthy, API fast, error rate near zero, all dashboards green.
+
+But it cannot tell you this:
+
+> Assistant responded: "You don't need to fast before your blood test."
+> — Completely wrong. Fasting was mandatory.
+
+Notice the gap. Traditional monitoring could not catch that failure.
+
+## The Building Blocks of AI Observability
+
+### Traces
+
+Full journey logs. Every request traced end-to-end.
+
+```
+Trace 2025-12-01T09:32:00
+  Input: "Do I need to fast before my blood test?"
+  Retrieval: 3 chunks fetched
+    chunk_1: "CBC blood panel - no fasting"
+    chunk_2: "General wellness - no fasting"  <- Wrong chunk retrieved
+    chunk_3: "Glucose test - fasting required" <- Not retrieved
+  Prompt: system + 3 chunks + user question
+  Output: "No fasting required."
+```
+
+The trace shows retrieval fetched the wrong documents.
+The model answered based on those wrong documents.
+
+### Evaluators
+
+Automated checkers that score responses.
+
+```python
+response = ai_app.answer(question)
+
+groundedness_score = evaluate_groundedness(response, retrieved_context)
+# Is the answer based on what was actually retrieved?
+
+relevance_score = evaluate_relevance(response, question)
+# Does the answer actually address the question?
+
+if groundedness_score < 0.7:
+    flag_for_review(response)
+```
+
+Common evaluators:
+
+| Evaluator | What it checks |
+|-----------|---------------|
+| Groundedness | Is the answer based on retrieved context? |
+| Relevance | Does it address the actual question? |
+| Toxicity | Is the content harmful? |
+| Coherence | Is the response logically structured? |
+| Similarity | Does it match expected answers? |
+
+### Feedback Loops
+
+Human review and automated scoring that feeds back into the system.
+
+```
+User gives thumbs down on AI response
+        ↓
+Feedback logged to observability system
+        ↓
+Team investigates: Wrong retrieval chunk was used
+        ↓
+Embedding model retrained on better document splits
+        ↓
+Quality improves on similar questions
+```
+
+## Azure AI Foundry Observability
+
+Microsoft built **Azure AI Foundry** with observability built in.
+
+| Capability | What it does |
+|-----------|-------------|
+| Tracing | Full end-to-end request traces |
+| Evaluation | Built-in quality evaluators |
+| Monitoring | Real-time dashboards for AI quality |
+| Risk & Safety | Detects harmful content |
+| Prompt Flow | Visual pipeline with trace steps visible |
+
+### Setting Up Tracing
+
+```python
+from azure.ai.inference.tracing import AIInferenceInstrumentor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(
+    SimpleSpanProcessor(your_exporter)
+)
+
+AIInferenceInstrumentor().instrument(
+    tracer_provider=tracer_provider,
+    enable_content_recording=True
+)
+```
+
+Every AI call is now traced automatically.
+
+### Running Evaluations
+
+```python
+from azure.ai.evaluation import evaluate, GroundednessEvaluator, RelevanceEvaluator
+
+evaluators = {
+    "groundedness": GroundednessEvaluator(model_config=azure_openai_config),
+    "relevance": RelevanceEvaluator(model_config=azure_openai_config),
+}
+
+results = evaluate(
+    data="test_dataset.jsonl",
+    evaluators=evaluators,
+    azure_ai_project=project,
+    output_path="./evaluation_results.json"
+)
+
+print(f"Groundedness score: {results['groundedness']:.2f}")
+print(f"Relevance score: {results['relevance']:.2f}")
+```
+
+### The Continuous Improvement Loop
+
+```
+Production AI App
+      ↓
+Traces + Scores collected automatically
+      ↓
+Team reviews low-scoring traces weekly
+      ↓
+Root cause: Retrieval? Prompt? Model config?
+      ↓
+Fix deployed → new eval run
+      ↓
+Compare before/after scores
+      ↓
+Repeat
+```
+
+This loop is what separates teams that improve AI quality from teams that just hope it works.
+
+## What Good AI Observability Looks Like
+
+Dashboard you actually want:
+
+```
+AI Quality Dashboard — Last 7 Days
+Groundedness Score:    0.84  (+0.06)
+Relevance Score:       0.79  (+0.03)
+Hallucination Rate:    3.2%  (-1.1%)
+User Thumbs Up:        78%   (+5%)
+Flagged Responses:     12    (-8)
+
+Low-Score Traces This Week:
+  - Query: "fasting before blood test"  groundedness: 0.32
+  - Query: "medication interactions"    groundedness: 0.41
+  - Query: "post-surgery diet"          groundedness: 0.58
+```
+
+Numbers trending in the right direction.
+Worst traces surfaced for manual review.
+Root causes visible.
+
+## Quick Reference
+
+| Concept | One-line definition |
+|---------|-------------------|
+| Trace | Full log of one AI request, step by step |
+| Evaluator | Automated scorer for response quality |
+| Groundedness | Measure of how much the answer uses retrieved context |
+| Hallucination | When the model invents facts not in the context |
+| Feedback loop | System for catching errors and improving over time |
+| AI Foundry | Microsoft's platform for building and observing AI apps |
+
+## What to Do This Week
+
+1. If you have an LLM app in production — add tracing now.
+   Even basic OpenTelemetry tracing is better than nothing.
+
+2. Run a groundedness evaluation on 50 recent queries.
+   You will likely find 5–10 where the model answered from hallucination.
+
+3. Set up a weekly review of the bottom 10% traces.
+   That review alone will surface the biggest quality issues.
+
+AI observability is not a nice-to-have.
+
+It's the difference between knowing your AI works… and hoping it does.

@@ -2,6 +2,15 @@ import Link from '@/components/Link'
 import type { Blog } from 'contentlayer/generated'
 import { slug as slugify } from 'github-slugger'
 
+const postTypeConfig: Record<string, { emoji: string; label: string; color: string; border: string; text: string }> = {
+  troubleshooting: { emoji: '🔧', label: 'Troubleshooting', color: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)', text: '#f87171' },
+  tutorial:        { emoji: '📖', label: 'Tutorial',        color: 'rgba(0,120,212,0.15)', border: 'rgba(0,120,212,0.3)', text: '#2899f5' },
+  architecture:    { emoji: '🏗',  label: 'Architecture',   color: 'rgba(139,92,246,0.15)', border: 'rgba(139,92,246,0.3)', text: '#a78bfa' },
+  devops:          { emoji: '⚙️', label: 'DevOps',          color: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)', text: '#fbbf24' },
+  news:            { emoji: '📢', label: 'News',             color: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', text: '#34d399' },
+  ai:              { emoji: '🤖', label: 'AI / GenAI',      color: 'rgba(236,72,153,0.15)', border: 'rgba(236,72,153,0.3)', text: '#f472b6' },
+}
+
 interface SanityPostCardProps {
   post: Blog
   isAuthenticated?: boolean
@@ -26,8 +35,20 @@ const SanityPostCard = ({ post, isAuthenticated = false }: SanityPostCardProps) 
         {/* Content */}
         <div className="flex flex-1 flex-col justify-between">
           {/* Tags and Badges */}
-          {(post.tags && post.tags.length > 0) || post.membersOnly ? (
+          {(post.tags && post.tags.length > 0) || post.membersOnly || post.postType ? (
             <div className="mb-3 flex flex-wrap items-center gap-2">
+              {post.postType && postTypeConfig[post.postType] && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold"
+                  style={{
+                    background: postTypeConfig[post.postType].color,
+                    border: `1px solid ${postTypeConfig[post.postType].border}`,
+                    color: postTypeConfig[post.postType].text,
+                  }}
+                >
+                  {postTypeConfig[post.postType].emoji} {postTypeConfig[post.postType].label}
+                </span>
+              )}
               {post.tags?.map((tag) => {
                 const isAzureTag = tag.toLowerCase().includes('azure')
                 return (
