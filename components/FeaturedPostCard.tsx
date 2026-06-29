@@ -39,27 +39,15 @@ const FeaturedPostCard = ({
           {post.tags.slice(0, isLarge ? 3 : 2).map((tag) => (
             <TagChip key={tag} text={tag} />
           ))}
+          {/* TEMPORARILY DISABLED — Members badge hidden while gating is off
           {post.membersOnly && (
-            <Link
-              href={targetHref}
-              className="text-body inline-flex items-center gap-1 rounded-full border border-white/10 bg-[#1F2937] px-2 py-1 text-xs font-semibold"
-            >
-              <svg
-                className="h-3.5 w-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-                <path d="M6 10V8a6 6 0 1 1 12 0v2" />
-                <rect x="4" y="10" width="16" height="10" rx="2" />
+            <Link href={targetHref} className="text-body inline-flex items-center gap-1 rounded-full border border-white/10 bg-[#1F2937] px-2 py-1 text-xs font-semibold">
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /><path d="M6 10V8a6 6 0 1 1 12 0v2" /><rect x="4" y="10" width="16" height="10" rx="2" />
               </svg>
               Members
             </Link>
-          )}
+          )} */}
         </div>
         <h3
           className={`mb-3 leading-tight font-bold break-words ${isLarge ? 'line-clamp-3 text-2xl' : 'line-clamp-2 text-lg'}`}

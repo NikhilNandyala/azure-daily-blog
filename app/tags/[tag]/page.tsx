@@ -39,8 +39,9 @@ export default async function TagPage(props: { params: Promise<{ tag: string }> 
   const params = await props.params
   const tagSlug = decodeURI(params.tag)
 
-  const session = await getServerSession(authOptions)
-  const isAuthenticated = Boolean(session)
+  // TEMPORARILY DISABLED — all posts public, no auth gate
+  // const session = await getServerSession(authOptions)
+  const isAuthenticated = true // re-enable: Boolean(await getServerSession(authOptions))
 
   const posts = getPostsByTag(tagSlug)
   const totalCount = posts.length

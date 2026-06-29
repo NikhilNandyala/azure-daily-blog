@@ -28,7 +28,9 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
 
   const { posts, totalPages } = getPaginatedPosts(pageNumber, POSTS_PER_PAGE)
 
-  const session = await getServerSession(authOptions)
+  // TEMPORARILY DISABLED — all posts public, no auth gate
+  // const session = await getServerSession(authOptions)
+  const session = null // remove when re-enabling membership
 
   return (
     <SectionContainer>
@@ -59,11 +61,13 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
           <div className="grid gap-6 md:gap-8">
             {posts.map((post) => {
               const isMembersOnly = post.membersOnly
-              const isAuthenticated = Boolean(session)
-              const href =
-                isMembersOnly && !isAuthenticated
-                  ? `/login?callbackUrl=${encodeURIComponent(`/blog/${post.slug}`)}`
-                  : `/blog/${post.slug}`
+              // TEMPORARILY DISABLED — always use direct href
+              // const isAuthenticated = Boolean(session)
+              const isAuthenticated = true
+              const href = `/blog/${post.slug}`
+              // const href = isMembersOnly && !isAuthenticated
+              //   ? `/login?callbackUrl=${encodeURIComponent(`/blog/${post.slug}`)}`
+              //   : `/blog/${post.slug}`
 
               return (
                 <article
@@ -130,11 +134,12 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
                       Featured
                     </div>
                   )}
+                  {/* TEMPORARILY DISABLED — members-only overlay removed
                   {isMembersOnly && !isAuthenticated && (
                     <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40">
                       <span className="font-semibold text-white">Members Only</span>
                     </div>
-                  )}
+                  )} */}
                 </article>
               )
             })}

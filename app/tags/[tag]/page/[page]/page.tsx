@@ -31,8 +31,9 @@ export default async function TagPagePaginated(props: {
 
   if (isNaN(pageNumber) || pageNumber <= 0) return notFound()
 
-  const session = await getServerSession(authOptions)
-  const isAuthenticated = Boolean(session)
+  // TEMPORARILY DISABLED — all posts public, no auth gate
+  // const session = await getServerSession(authOptions)
+  const isAuthenticated = true // re-enable: Boolean(await getServerSession(authOptions))
 
   const allTagPosts = getPostsByTag(tagSlug)
   const totalCount = allTagPosts.length

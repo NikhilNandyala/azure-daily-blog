@@ -33,7 +33,8 @@ export default async function Page(props: { params: Promise<{ page: string }> })
     totalPages: totalPages,
   }
 
-  const session = await getServerSession(authOptions)
+  // TEMPORARILY DISABLED — all posts public, no auth gate
+  // const session = await getServerSession(authOptions)
 
   return (
     <ListLayout
@@ -41,7 +42,7 @@ export default async function Page(props: { params: Promise<{ page: string }> })
       initialDisplayPosts={initialDisplayPosts}
       pagination={pagination}
       title="All Posts"
-      isAuthenticated={Boolean(session)}
+      isAuthenticated={true}
     />
   )
 }

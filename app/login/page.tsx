@@ -59,10 +59,10 @@ function LoginForm() {
       <div className="w-full max-w-md space-y-8">
         <div>
           <h2 className="text-body mt-6 text-center text-3xl font-extrabold">
-            Sign in to AzureFixes
+            Admin access
           </h2>
           <p className="text-muted mt-2 text-center text-sm">
-            Access exclusive content and features
+            Sign in to access the admin dashboard
           </p>
         </div>
         <div className="mt-8 space-y-4">

@@ -61,32 +61,16 @@ const SanityPostCard = ({ post, isAuthenticated = false }: SanityPostCardProps) 
                   </Link>
                 )
               })}
+              {/* TEMPORARILY DISABLED — Members badge hidden while gating is off
               {post.membersOnly && (
-                <Link
-                  href={targetHref}
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold"
-                  style={{
-                    background: 'rgba(200,134,10,0.10)',
-                    border: '1px solid rgba(200,134,10,0.35)',
-                    color: '#d4a843',
-                  }}
-                >
-                  <svg
-                    className="h-3.5 w-3.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-                    <path d="M6 10V8a6 6 0 1 1 12 0v2" />
-                    <rect x="4" y="10" width="16" height="10" rx="2" />
+                <Link href={targetHref} className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold"
+                  style={{ background: 'rgba(200,134,10,0.10)', border: '1px solid rgba(200,134,10,0.35)', color: '#d4a843' }}>
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /><path d="M6 10V8a6 6 0 1 1 12 0v2" /><rect x="4" y="10" width="16" height="10" rx="2" />
                   </svg>
                   Members
                 </Link>
-              )}
+              )} */}
             </div>
           ) : null}
 

@@ -39,24 +39,15 @@ export default function MostRead({ posts, isAuthenticated = false }: MostReadPro
             >
               {post.title}
             </Link>
+            {/* TEMPORARILY DISABLED — Members badge hidden while gating is off
             {post.membersOnly && (
               <span className="text-body ml-2 inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#1F2937] px-2 py-1 text-[10px] font-semibold">
-                <svg
-                  className="h-3 w-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-                  <path d="M6 10V8a6 6 0 1 1 12 0v2" />
-                  <rect x="4" y="10" width="16" height="10" rx="2" />
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /><path d="M6 10V8a6 6 0 1 1 12 0v2" /><rect x="4" y="10" width="16" height="10" rx="2" />
                 </svg>
                 Members
               </span>
-            )}
+            )} */}
           </li>
         ))}
       </ul>

@@ -50,35 +50,36 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
   const post = getPostBySlug(postSlug)
   if (!post) notFound()
 
-  const session = await getServerSession(authOptions)
-
-  if (post.membersOnly && !session) {
-    const callbackUrl = `/blog/${postSlug}`
-    const loginHref = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="max-w-md rounded-lg border border-white/6 bg-[#111827] p-8 text-center">
-          <p className="text-accent mb-2 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide uppercase">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-              <path d="M6 10V8a6 6 0 1 1 12 0v2" />
-              <rect x="4" y="10" width="16" height="10" rx="2" />
-            </svg>
-            Members Only
-          </p>
-          <h2 className="text-body mb-3 text-2xl font-bold">Sign in to continue</h2>
-          <p className="text-muted mb-6">
-            This post is reserved for members. Please sign in to unlock the content.
-          </p>
-          <div className="flex justify-center">
-            <Link href={loginHref} className="text-inverse rounded-md bg-[#38BDF8] px-4 py-2 text-sm font-medium hover:bg-[#60A5FA]">
-              Log in to read
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // TEMPORARILY DISABLED — membersOnly gating removed so all posts are public.
+  // Re-enable when membership launches: uncomment the block below.
+  // const session = await getServerSession(authOptions)
+  // if (post.membersOnly && !session) {
+  //   const callbackUrl = `/blog/${postSlug}`
+  //   const loginHref = `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+  //   return (
+  //     <div className="flex min-h-screen items-center justify-center">
+  //       <div className="max-w-md rounded-lg border border-white/6 bg-[#111827] p-8 text-center">
+  //         <p className="text-accent mb-2 flex items-center justify-center gap-2 text-sm font-semibold tracking-wide uppercase">
+  //           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  //             <path d="M12 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+  //             <path d="M6 10V8a6 6 0 1 1 12 0v2" />
+  //             <rect x="4" y="10" width="16" height="10" rx="2" />
+  //           </svg>
+  //           Members Only
+  //         </p>
+  //         <h2 className="text-body mb-3 text-2xl font-bold">Sign in to continue</h2>
+  //         <p className="text-muted mb-6">
+  //           This post is reserved for members. Please sign in to unlock the content.
+  //         </p>
+  //         <div className="flex justify-center">
+  //           <Link href={loginHref} className="text-inverse rounded-md bg-[#38BDF8] px-4 py-2 text-sm font-medium hover:bg-[#60A5FA]">
+  //             Log in to read
+  //           </Link>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   )
+  // }
 
   const minutes = Math.ceil((post.readingTime as { minutes: number }).minutes) || 1
 

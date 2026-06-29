@@ -157,12 +157,14 @@ const Header = ({ posts }: HeaderProps) => {
             )}
           </div>
         ) : (
-          <Link
-            href="/login"
-            className="btn-azure rounded-md px-4 py-2 text-sm font-medium"
-          >
-            Login
-          </Link>
+          // TEMPORARILY DISABLED — Login button hidden from public visitors.
+          // Re-enable below when membership launches.
+          // <Link href="/login" className="btn-azure rounded-md px-4 py-2 text-sm font-medium">Login</Link>
+          process.env.NODE_ENV === 'development' ? (
+            <Link href="/login" style={{ fontSize: '11px', color: '#6a5a3a' }}>
+              Admin
+            </Link>
+          ) : null
         )}
         <MobileNav />
       </div>

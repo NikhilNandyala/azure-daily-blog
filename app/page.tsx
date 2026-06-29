@@ -8,8 +8,9 @@ import MostVisited from '@/components/MostVisited'
 export const revalidate = 3600
 
 export default async function Page() {
-  const session = await getServerSession(authOptions)
-  const isAuthenticated = Boolean(session)
+  // TEMPORARILY DISABLED — all posts public, no auth gate
+  // const session = await getServerSession(authOptions)
+  const isAuthenticated = true // re-enable: Boolean(await getServerSession(authOptions))
 
   const posts = getAllPosts()
   const tagsWithCounts = getAllTags()
