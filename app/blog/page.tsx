@@ -72,7 +72,7 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
               return (
                 <article
                   key={post.slug}
-                  className="group relative overflow-hidden rounded-lg border border-white/6 bg-gradient-to-b from-white/5 to-white/0 p-6 transition-all duration-300 hover:border-white/20"
+                  className="post-card group"
                 >
                   <div className="flex flex-col gap-6 md:flex-row">
                     <div className="flex flex-1 flex-col justify-between">

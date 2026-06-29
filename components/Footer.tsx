@@ -191,23 +191,8 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap' as const,
-            gap: '10px',
-          }}
-        >
-          <div style={{ fontSize: '11px', color: '#6a5a3a' }}>
-            © {new Date().getFullYear()} AzureFixes · Built by NVN
-          </div>
-          <div style={{ fontSize: '11px', color: '#6a5a3a' }}>
-            Powered by <span style={{ color: '#8a7a5a' }}>Next.js</span>
-            {' · '}
-            <span style={{ color: '#8a7a5a' }}>Deployed on Vercel</span>
-          </div>
+        <div style={{ fontSize: '11px', color: '#6a5a3a' }}>
+          © {new Date().getFullYear()} AzureFixes · Built by NVN
         </div>
       </div>
     </footer>

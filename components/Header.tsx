@@ -18,6 +18,7 @@ interface Post {
   featured?: boolean
   pinned?: boolean
   membersOnly?: boolean
+  postType?: string
 }
 
 interface HeaderProps {

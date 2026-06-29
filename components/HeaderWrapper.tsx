@@ -10,6 +10,7 @@ export function HeaderWrapper() {
     tags: p.tags ?? [],
     featured: p.featured ?? false,
     membersOnly: p.membersOnly ?? false,
+    postType: p.postType ?? undefined,
   }))
   return <Header posts={posts} />
 }

@@ -31,7 +31,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const categoryName = getCategoryName(project.category)
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-lg border border-gray-800 bg-gray-900 transition-all hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10">
+    <div className="project-card group flex flex-col">
       {/* Hero Image */}
       {project.coverImage && (
         <Link href={projectUrl} className="relative block aspect-video w-full overflow-hidden">
@@ -78,7 +78,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
         )}
 
         {/* Footer: Links */}
-        <div className="flex items-center justify-between border-t border-gray-800 pt-4">
+        <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid rgba(200,134,10,0.12)' }}>
           <Link
             href={projectUrl}
             className="inline-flex items-center gap-2 text-sm font-medium text-[#f0a500] transition-colors hover:text-[#ffd166]"

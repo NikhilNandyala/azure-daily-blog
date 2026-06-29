@@ -12,6 +12,7 @@ interface Post {
   featured?: boolean
   pinned?: boolean
   membersOnly?: boolean
+  postType?: string
 }
 
 interface SearchModalProps {
@@ -24,8 +25,6 @@ export default function SearchModal({ posts, isOpen, onClose }: SearchModalProps
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Post[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
-  const modalRef = useRef<HTMLDivElement>(null)
-  const [inputFocused, setInputFocused] = useState(false)
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -63,8 +62,8 @@ export default function SearchModal({ posts, isOpen, onClose }: SearchModalProps
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
-    if (isOpen) document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    if (isOpen) window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
   if (!isOpen) return null
@@ -76,7 +75,7 @@ export default function SearchModal({ posts, isOpen, onClose }: SearchModalProps
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(5, 13, 26, 0.75)',
+          background: 'rgba(5,13,26,0.8)',
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',
           zIndex: 40,
@@ -87,49 +86,60 @@ export default function SearchModal({ posts, isOpen, onClose }: SearchModalProps
 
       {/* Modal card */}
       <div
-        ref={modalRef}
         style={{
           position: 'fixed',
-          top: '20%',
+          top: '12%',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: '90%',
-          maxWidth: '580px',
-          background: 'linear-gradient(135deg, rgba(15,31,56,0.98), rgba(10,22,40,0.99))',
-          border: '1px solid rgba(200,134,10,0.3)',
+          width: '92%',
+          maxWidth: '620px',
+          maxHeight: '70vh',
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'linear-gradient(135deg, rgba(15,31,56,0.99), rgba(10,22,40,0.99))',
+          border: '1px solid rgba(200,134,10,0.35)',
           borderRadius: '16px',
-          padding: '24px',
+          padding: '20px',
           zIndex: 50,
-          boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(200,134,10,0.1) inset',
         }}
       >
         {/* Search input */}
-        <div style={{ position: 'relative', marginBottom: '16px' }}>
+        <div style={{ position: 'relative', marginBottom: '4px' }}>
           <input
             ref={inputRef}
             type="text"
             placeholder="Search posts by title, tags, or content…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = '#f0a500'
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,165,0,0.15)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(200,134,10,0.4)'
+              e.currentTarget.style.boxShadow = 'none'
+            }}
             style={{
-              background: 'rgba(5,13,26,0.8)',
-              border: `1px solid ${inputFocused ? '#f0a500' : 'rgba(200,134,10,0.3)'}`,
+              width: '100%',
+              background: 'rgba(5,13,26,0.9)',
+              border: '1px solid rgba(200,134,10,0.4)',
               borderRadius: '10px',
-              color: '#ffeaa0',
               padding: '12px 44px 12px 16px',
               fontSize: '14px',
-              width: '100%',
+              color: '#ffeaa0',
               outline: 'none',
-              transition: 'border-color 0.15s',
+              caretColor: '#f0a500',
+              marginBottom: '14px',
+              fontFamily: 'inherit',
               boxSizing: 'border-box',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
             }}
           />
           <svg
             style={{
               position: 'absolute',
-              top: '50%',
+              top: '21px',
               right: '14px',
               transform: 'translateY(-50%)',
               width: '18px',
@@ -141,118 +151,136 @@ export default function SearchModal({ posts, isOpen, onClose }: SearchModalProps
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
 
-        {/* Results */}
-        {query.trim() !== '' && (
-          <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
-            {results.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {results.map((post) => (
-                  <Link
-                    key={post.slug}
-                    href={`/blog/${post.slug}`}
-                    onClick={onClose}
-                    style={{
-                      display: 'block',
-                      borderRadius: '10px',
-                      border: '0.5px solid rgba(200,134,10,0.15)',
-                      padding: '14px 16px',
-                      background: 'rgba(10,22,40,0.6)',
-                      textDecoration: 'none',
-                      transition: 'border-color 0.15s, background 0.15s',
-                    }}
-                    onMouseEnter={(e) => {
-                      ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,134,10,0.4)'
-                      ;(e.currentTarget as HTMLElement).style.background = 'rgba(15,31,56,0.8)'
-                    }}
-                    onMouseLeave={(e) => {
-                      ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,134,10,0.15)'
-                      ;(e.currentTarget as HTMLElement).style.background = 'rgba(10,22,40,0.6)'
-                    }}
-                  >
-                    <div
+        {/* Results scroll area */}
+        <div
+          className="search-results"
+          style={{
+            overflowY: 'auto',
+            flex: 1,
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          } as React.CSSProperties}
+        >
+          {query.trim() !== '' && (
+            <>
+              {results.length > 0 ? (
+                <div>
+                  {results.map((post) => (
+                    <Link
+                      key={post.slug}
+                      href={`/blog/${post.slug}`}
+                      onClick={onClose}
                       style={{
-                        fontSize: '14px',
-                        fontWeight: 600,
-                        color: '#ffeaa0',
+                        display: 'block',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
                         marginBottom: '4px',
-                        lineHeight: 1.4,
+                        cursor: 'pointer',
+                        border: '0.5px solid transparent',
+                        textDecoration: 'none',
+                        transition: 'all .15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        ;(e.currentTarget as HTMLElement).style.background = 'rgba(200,134,10,0.08)'
+                        ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(200,134,10,0.25)'
+                      }}
+                      onMouseLeave={(e) => {
+                        ;(e.currentTarget as HTMLElement).style.background = 'transparent'
+                        ;(e.currentTarget as HTMLElement).style.borderColor = 'transparent'
                       }}
                     >
-                      {post.title}
-                    </div>
-                    {post.summary && (
-                      <div
-                        style={{
-                          fontSize: '12px',
-                          color: '#8a7a5a',
-                          marginBottom: '8px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {post.summary.slice(0, 100)}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {post.tags.slice(0, 4).map((tag) => (
-                        <span
-                          key={tag}
-                          style={{
+                      {/* Meta: postType + date */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        {post.postType && (
+                          <span style={{
                             fontSize: '10px',
                             padding: '2px 8px',
-                            borderRadius: '999px',
-                            background: 'rgba(200,134,10,0.1)',
-                            border: '1px solid rgba(200,134,10,0.25)',
-                            color: '#d4a843',
-                          }}
-                        >
-                          {tag}
+                            borderRadius: '10px',
+                            background: 'rgba(200,134,10,0.08)',
+                            border: '0.5px solid rgba(200,134,10,0.2)',
+                            color: '#8a7a5a',
+                          }}>
+                            {post.postType}
+                          </span>
+                        )}
+                        <span style={{ fontSize: '10px', color: '#6a5a3a', marginLeft: 'auto' }}>
+                          {post.date ? new Date(post.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
                         </span>
-                      ))}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div
-                style={{
-                  padding: '32px 0',
-                  textAlign: 'center',
-                  fontSize: '13px',
-                  color: '#8a7a5a',
-                }}
-              >
-                No posts found for &ldquo;{query}&rdquo;
-              </div>
-            )}
-          </div>
-        )}
+                      </div>
 
-        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={onClose}
-            style={{
-              fontSize: '12px',
-              color: '#8a7a5a',
-              background: 'transparent',
-              border: '1px solid rgba(200,134,10,0.2)',
-              borderRadius: '6px',
-              padding: '6px 14px',
-              cursor: 'pointer',
-            }}
-          >
-            Close (Esc)
-          </button>
+                      {/* Title */}
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#ffeaa0', marginBottom: '3px' }}>
+                        {post.title}
+                      </div>
+
+                      {/* Excerpt */}
+                      {post.summary && (
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#8a7a5a',
+                          lineHeight: 1.5,
+                          marginBottom: '6px',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        } as React.CSSProperties}>
+                          {post.summary}
+                        </div>
+                      )}
+
+                      {/* Tags */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {post.tags.slice(0, 4).map((tag) => (
+                          <span
+                            key={tag}
+                            style={{
+                              fontSize: '10px',
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              background: 'rgba(200,134,10,0.08)',
+                              border: '0.5px solid rgba(200,134,10,0.25)',
+                              color: '#d4a843',
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '32px 20px', color: '#6a5a3a', fontSize: '13px' }}>
+                  <div style={{ fontSize: '28px', marginBottom: '10px' }}>🔍</div>
+                  <div style={{ color: '#8a7a5a', marginBottom: '4px' }}>No posts found for &ldquo;{query}&rdquo;</div>
+                  <div style={{ fontSize: '11px', color: '#6a5a3a' }}>Try searching for a tag, topic, or Azure service</div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer hint */}
+        <div style={{
+          fontSize: '10px',
+          color: '#6a5a3a',
+          textAlign: 'center',
+          marginTop: '12px',
+          paddingTop: '10px',
+          borderTop: '0.5px solid rgba(200,134,10,0.1)',
+          flexShrink: 0,
+        }}>
+          Press <span style={{ color: '#8a7a5a', fontFamily: 'monospace' }}>ESC</span> or click outside to close
+          {results.length > 0 && (
+            <span style={{ marginLeft: '12px' }}>
+              {results.length} result{results.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       </div>
     </>
