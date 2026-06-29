@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
-import siteMetadata from '@/data/siteMetadata'
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://azurefixes.com'
 
 export const dynamic = 'force-static'
 
@@ -15,8 +16,12 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: 'Mediapartners-Google',
         allow: '/',
       },
+      {
+        userAgent: 'Googlebot',
+        allow: '/',
+      },
     ],
-    sitemap: `${siteMetadata.siteUrl}/sitemap.xml`,
-    host: siteMetadata.siteUrl,
+    sitemap: `${siteUrl}/sitemap.xml`,
+    host: siteUrl,
   }
 }
