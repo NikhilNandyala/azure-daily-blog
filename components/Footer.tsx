@@ -191,8 +191,14 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div style={{ fontSize: '11px', color: '#6a5a3a' }}>
-          © {new Date().getFullYear()} AzureFixes · Built by NVN
+        <div style={{
+          textAlign: 'center',
+          paddingTop: '16px',
+          borderTop: '0.5px solid rgba(200,134,10,0.1)',
+        }}>
+          <div style={{ fontSize: '12px', color: '#6a5a3a', letterSpacing: '0.02em' }}>
+            © {new Date().getFullYear()} AzureFixes · Built by NVN
+          </div>
         </div>
       </div>
     </footer>

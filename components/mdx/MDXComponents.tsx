@@ -9,17 +9,17 @@ export const mdxComponents = {
     </h1>
   ),
   h2: ({ children }: Props) => (
-    <h2 style={{ color: '#ffeaa0', fontWeight: 700, fontSize: '1.375rem', lineHeight: 1.35, margin: '2rem 0 .75rem', paddingBottom: '.5rem', borderBottom: '1px solid rgba(200,134,10,0.2)' }}>
+    <h2 style={{ color: '#ffeaa0', fontWeight: 700, fontSize: '1.5rem', lineHeight: 1.3, margin: '2.5rem 0 1rem', paddingBottom: '.5rem', borderBottom: '1px solid rgba(200,134,10,0.2)' }}>
       {children}
     </h2>
   ),
   h3: ({ children }: Props) => (
-    <h3 style={{ color: '#d4a843', fontWeight: 600, fontSize: '1.1rem', margin: '1.5rem 0 .5rem' }}>
+    <h3 style={{ color: '#d4a843', fontWeight: 600, fontSize: '1.2rem', margin: '2rem 0 .75rem' }}>
       {children}
     </h3>
   ),
   p: ({ children }: Props) => (
-    <p style={{ color: '#b8a882', lineHeight: 1.8, marginBottom: '1rem', fontSize: '0.95rem' }}>
+    <p style={{ color: '#b8a882', lineHeight: 1.85, marginBottom: '1.25rem', fontSize: '1.0625rem' }}>
       {children}
     </p>
   ),
@@ -49,7 +49,7 @@ export const mdxComponents = {
     </pre>
   ),
   blockquote: ({ children }: Props) => (
-    <blockquote style={{ borderLeft: '3px solid #f0a500', paddingLeft: '1rem', margin: '1.5rem 0', color: '#8a7a5a', fontStyle: 'italic' }}>
+    <blockquote style={{ borderLeft: '3px solid #c8860a', paddingLeft: '1.25rem', margin: '1.75rem 0', color: '#8a7a5a', fontStyle: 'italic', fontSize: '1.0625rem', lineHeight: 1.7 }}>
       {children}
     </blockquote>
   ),
@@ -64,7 +64,7 @@ export const mdxComponents = {
     </ol>
   ),
   li: ({ children }: Props) => (
-    <li style={{ marginBottom: '.35rem' }}>{children}</li>
+    <li style={{ marginBottom: '.4rem', fontSize: '1.0625rem', lineHeight: 1.8 }}>{children}</li>
   ),
   hr: () => (
     <hr style={{ border: 'none', borderTop: '1px solid rgba(200,134,10,0.2)', margin: '2rem 0' }} />

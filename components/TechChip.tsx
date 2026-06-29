@@ -7,7 +7,7 @@ interface TechChipProps {
  * TechChip - Displays technology/skill chip with dark theme styling
  */
 export function TechChip({ tech, size = 'sm' }: TechChipProps) {
-  const sizeClasses = size === 'sm' ? 'text-xs px-2 py-1' : 'text-sm px-3 py-1.5'
+  const sizeClasses = size === 'sm' ? 'text-xs px-3 py-1' : 'text-sm px-3 py-1.5'
 
   return (
     <span

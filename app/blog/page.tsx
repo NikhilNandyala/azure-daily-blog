@@ -47,7 +47,7 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
       </nav>
       <div className="space-y-2 pt-6 pb-8 md:space-y-5">
         <PageTitle>Blog</PageTitle>
-        <p className="text-muted text-lg leading-7">
+        <p className="text-muted leading-7" style={{ fontSize: '15px' }}>
           Thoughts on Azure, networking, and cloud infrastructure
         </p>
       </div>
@@ -78,7 +78,7 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
                     <div className="flex flex-1 flex-col justify-between">
                       <div className="mb-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <time className="text-muted text-sm">
+                          <time className="text-muted" style={{ fontSize: '13px' }}>
                             {new Date(post.date).toLocaleDateString('en-US', {
                               year: 'numeric',
                               month: 'long',
@@ -87,11 +87,13 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
                           </time>
                           {post.postType && postTypeConfig[post.postType] && (
                             <span
-                              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold"
+                              className="inline-flex items-center gap-1 rounded-full font-semibold"
                               style={{
                                 background: postTypeConfig[post.postType].color,
                                 border: `1px solid ${postTypeConfig[post.postType].border}`,
                                 color: postTypeConfig[post.postType].text,
+                                fontSize: '12px',
+                                padding: '4px 12px',
                               }}
                             >
                               {postTypeConfig[post.postType].emoji} {postTypeConfig[post.postType].label}
@@ -104,7 +106,8 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
                               <Link
                                 key={tag}
                                 href={`/tags/${slugify(tag)}`}
-                                className="text-accent inline-block rounded bg-white/5 px-2 py-1 text-xs transition-colors hover:bg-white/10"
+                                className="text-accent inline-block rounded bg-white/5 transition-colors hover:bg-white/10"
+                                style={{ fontSize: '12px', padding: '4px 12px' }}
                               >
                                 #{tag}
                               </Link>
@@ -114,15 +117,15 @@ export default async function BlogPage(props: { searchParams: Promise<{ page?: s
                       </div>
 
                       <div className="mb-4">
-                        <h2 className="text-body group-hover:text-accent mb-2 text-xl font-bold transition-colors md:text-2xl">
+                        <h2 className="text-body group-hover:text-accent mb-2 transition-colors" style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.35 }}>
                           {post.title}
                         </h2>
-                        <p className="text-muted line-clamp-2">{post.summary}</p>
+                        <p className="text-muted line-clamp-2" style={{ fontSize: '14px', lineHeight: 1.7 }}>{post.summary}</p>
                       </div>
 
                       <div className="flex items-center justify-between border-t border-white/6 pt-4">
-                        <span className="text-muted text-sm">{post.authors?.[0] ?? 'NVN'}</span>
-                        <Link href={href} className="text-accent hover:text-primary-300 font-medium transition-colors">
+                        <span className="text-muted" style={{ fontSize: '13px' }}>{post.authors?.[0] ?? 'NVN'}</span>
+                        <Link href={href} className="text-accent hover:text-primary-300 transition-colors" style={{ fontSize: '13px', fontWeight: 600 }}>
                           Read more →
                         </Link>
                       </div>

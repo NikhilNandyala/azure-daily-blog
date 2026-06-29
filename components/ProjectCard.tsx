@@ -57,13 +57,13 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
         {/* Title */}
         <Link href={projectUrl}>
-          <h3 className="mb-2 text-xl font-bold text-[#ffeaa0] transition-colors group-hover:text-[#f0a500]">
+          <h3 className="mb-2 font-bold text-[#ffeaa0] transition-colors group-hover:text-[#f0a500]" style={{ fontSize: '17px' }}>
             {project.title}
           </h3>
         </Link>
 
         {/* Description */}
-        <p className="mb-4 flex-1 text-sm text-gray-400">{project.description}</p>
+        <p className="mb-4 flex-1 text-sm text-gray-400" style={{ lineHeight: 1.7 }}>{project.description}</p>
 
         {/* Tech Stack */}
         {project.techStack && project.techStack.length > 0 && (
@@ -81,7 +81,8 @@ export function ProjectCard({ project }: ProjectCardProps) {
         <div className="flex items-center justify-between pt-4" style={{ borderTop: '1px solid rgba(200,134,10,0.12)' }}>
           <Link
             href={projectUrl}
-            className="inline-flex items-center gap-2 text-sm font-medium text-[#f0a500] transition-colors hover:text-[#ffd166]"
+            className="inline-flex items-center gap-2 font-medium text-[#f0a500] transition-colors hover:text-[#ffd166]"
+            style={{ fontSize: '13px' }}
           >
             View project
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

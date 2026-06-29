@@ -121,7 +121,7 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
               <dl className="space-y-10">
                 <div>
                   <dt className="sr-only">Published on</dt>
-                  <dd className="text-muted flex items-center justify-center gap-3 text-base leading-6 font-medium">
+                  <dd className="text-muted flex items-center justify-center gap-3 font-medium" style={{ fontSize: '14px' }}>
                     <time dateTime={post.date}>
                       {new Date(post.date).toLocaleDateString('en-US', {
                         weekday: 'long',
@@ -136,7 +136,7 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
                 </div>
               </dl>
               <div>
-                <h1 className="text-body text-3xl leading-9 font-bold tracking-tight sm:text-4xl sm:leading-10 md:text-5xl md:leading-14">
+                <h1 className="text-body tracking-tight" style={{ fontSize: '36px', fontWeight: 800, lineHeight: 1.2 }}>
                   {post.title}
                 </h1>
               </div>
@@ -146,8 +146,8 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
                     <Link
                       key={tag}
                       href={`/tags/${slugify(tag)}`}
-                      className="mr-2 inline-block rounded-full px-3 py-1 text-sm font-semibold"
-                      style={{ background: 'rgba(200,134,10,0.10)', border: '1px solid rgba(200,134,10,0.35)', color: '#d4a843' }}
+                      className="mr-2 inline-block rounded-full font-semibold"
+                      style={{ background: 'rgba(200,134,10,0.10)', border: '1px solid rgba(200,134,10,0.35)', color: '#d4a843', fontSize: '13px', padding: '5px 14px' }}
                     >
                       #{tag}
                     </Link>
