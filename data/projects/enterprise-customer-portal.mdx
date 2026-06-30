@@ -13,7 +13,7 @@ coverImage: '/images/projects/enterprise-customer-portal-cover.svg'
 
 ## Architecture Overview
 
-<img src="/images/projects/enterprise-portal-architecture.svg" alt="Enterprise Customer Portal full architecture: Front Door → App Gateway WAF → VNet (App Service + .NET API + Azure SQL private endpoint) + shared services + Azure DevOps CI/CD pipeline" />
+<DiagramImage src="/images/projects/enterprise-portal-architecture.svg" alt="Enterprise Customer Portal full architecture: Front Door → App Gateway WAF → VNet (App Service + .NET API + Azure SQL private endpoint) + shared services + Azure DevOps CI/CD pipeline" caption="Full architecture: Front Door Premium → App Gateway WAF_v2 → VNet with App Services (React + .NET 8) → Azure SQL private endpoint. Shared services + CI/CD pipeline below." />
 
 **Three-tier layout inside a single VNet (`10.0.0.0/16`).** All PaaS data-plane traffic stays on private endpoints — no SQL, Key Vault, or Service Bus traffic ever reaches the public internet once it enters Azure.
 

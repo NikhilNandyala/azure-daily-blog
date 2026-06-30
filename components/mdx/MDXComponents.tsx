@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
 import { MDXCodeBlock } from '@/components/MDXCodeBlock'
+import { DiagramImage } from '@/components/DiagramImage'
 
 type Props = { children?: ReactNode; className?: string; href?: string; src?: string; alt?: string; [key: string]: unknown }
 
@@ -92,5 +93,8 @@ export const mdxComponents = {
       alt={(alt as string) ?? ''}
       style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', margin: '1.5rem 0', border: '1px solid rgba(200,134,10,0.15)', display: 'block' }}
     />
+  ),
+  DiagramImage: ({ src, alt, caption }: Props) => (
+    <DiagramImage src={src as string} alt={(alt as string) ?? ''} caption={caption as string | undefined} />
   ),
 }
