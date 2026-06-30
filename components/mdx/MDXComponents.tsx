@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { MDXCodeBlock } from '@/components/MDXCodeBlock'
 
 type Props = { children?: ReactNode; className?: string; href?: string; src?: string; alt?: string; [key: string]: unknown }
 
@@ -43,28 +44,7 @@ export const mdxComponents = {
       </code>
     )
   },
-  pre: ({ children }: Props) => (
-    <pre style={{
-      background: 'rgba(10,22,40,0.98)',
-      border: '1px solid rgba(0,120,212,0.2)',
-      borderRadius: 10,
-      padding: '1.25rem',
-      marginBottom: '1.5rem',
-      fontSize: '0.875rem',
-      lineHeight: 1.7,
-      boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
-      overflowX: 'auto',
-      overflowY: 'hidden',
-      maxWidth: '100%',
-      width: '100%',
-      boxSizing: 'border-box',
-      whiteSpace: 'pre',
-      scrollbarWidth: 'thin',
-      scrollbarColor: 'rgba(200,134,10,0.3) transparent',
-    }}>
-      {children}
-    </pre>
-  ),
+  pre: ({ children }: Props) => <MDXCodeBlock>{children}</MDXCodeBlock>,
   blockquote: ({ children }: Props) => (
     <blockquote style={{ borderLeft: '3px solid #c8860a', paddingLeft: '1.25rem', margin: '1.75rem 0', color: '#8a7a5a', fontStyle: 'italic', fontSize: '1.0625rem', lineHeight: 1.7 }}>
       {children}

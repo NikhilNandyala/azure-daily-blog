@@ -175,16 +175,9 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
             </div>
           </header>
 
-          {/* Content + ToC sidebar */}
-          <div className="xl:grid xl:grid-cols-[1fr_240px] xl:gap-10">
-            <div className="prose dark:prose-invert max-w-none py-6" style={{ minWidth: 0, overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-              <MDXRenderer code={post.body.code} />
-            </div>
-
-            {/* Sticky ToC — desktop only */}
-            <aside className="hidden xl:block py-6">
-              <TableOfContents />
-            </aside>
+          {/* Content — full article width */}
+          <div className="prose dark:prose-invert max-w-none py-6" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+            <MDXRenderer code={post.body.code} />
           </div>
         </div>
       </SectionContainer>
