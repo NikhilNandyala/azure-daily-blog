@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050d1a"/>
+      <stop offset="100%" style="stop-color:#081220"/>
+    </linearGradient>
+    <linearGradient id="tf-header" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4c1d95;stop-opacity:0.5"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.2"/>
+    </linearGradient>
+    <linearGradient id="bi-header" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#92400e;stop-opacity:0.5"/>
+      <stop offset="100%" style="stop-color:#c8860a;stop-opacity:0.2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="4" fill="url(#tf-header)"/>
+  <rect x="600" y="0" width="600" height="4" fill="url(#bi-header)"/>
+
+  <!-- Title bar -->
+  <rect x="0" y="0" width="1200" height="72" fill="rgba(10,22,40,0.95)"/>
+  <text x="600" y="38" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" fill="#ffeaa0" letter-spacing="-0.01em">Terraform vs Bicep — At-a-Glance Comparison</text>
+  <text x="600" y="58" text-anchor="middle" font-family="monospace" font-size="12" fill="#8a7a5a" letter-spacing="0.04em">AZUREFIXES.COM · 2026</text>
+
+  <!-- Column headers -->
+  <!-- Terraform header -->
+  <rect x="0" y="72" width="600" height="60" fill="url(#tf-header)"/>
+  <text x="300" y="108" text-anchor="middle" font-family="system-ui, sans-serif" font-size="28" font-weight="800" fill="#c4b5fd" letter-spacing="-0.01em">Terraform</text>
+  <text x="430" y="108" text-anchor="middle" font-family="monospace" font-size="12" fill="#a78bfa" fill-opacity="0.6">HCL · OpenTofu · azurerm ~4</text>
+
+  <!-- Bicep header -->
+  <rect x="600" y="72" width="600" height="60" fill="url(#bi-header)"/>
+  <text x="900" y="108" text-anchor="middle" font-family="system-ui, sans-serif" font-size="28" font-weight="800" fill="#fcd34d" letter-spacing="-0.01em">Bicep</text>
+  <text x="1040" y="108" text-anchor="middle" font-family="monospace" font-size="12" fill="#c8860a" fill-opacity="0.7">Azure DSL · ARM · Day-zero</text>
+
+  <!-- Center divider -->
+  <line x1="600" y1="72" x2="600" y2="800" stroke="#c8860a" stroke-opacity="0.2" stroke-width="1.5"/>
+
+  <!-- ─── ROW 1: Cloud Scope ─── -->
+  <rect x="0" y="132" width="1200" height="90" fill="rgba(255,255,255,0.012)"/>
+  <rect x="0" y="132" width="1200" height="1" fill="rgba(200,134,10,0.08)"/>
+  <!-- Row label -->
+  <rect x="0" y="132" width="120" height="90" fill="rgba(0,0,0,0.3)"/>
+  <text x="60" y="175" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">CLOUD</text>
+  <text x="60" y="192" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">SCOPE</text>
+
+  <!-- TF cell -->
+  <rect x="124" y="142" width="460" height="68" rx="6" fill="#7c3aed" fill-opacity="0.07" stroke="#a78bfa" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="144" y="170" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#c4b5fd">Multi-cloud · AWS · GCP · Azure · Kubernetes</text>
+  <text x="144" y="192" font-family="monospace" font-size="11" fill="#8a7a5a">800+ providers in public registry · vendor-agnostic abstractions</text>
+
+  <!-- Bicep cell -->
+  <rect x="624" y="142" width="560" height="68" rx="6" fill="#c8860a" fill-opacity="0.06" stroke="#c8860a" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="644" y="170" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#fcd34d">Azure only</text>
+  <text x="644" y="192" font-family="monospace" font-size="11" fill="#8a7a5a">Compiles to ARM JSON · first-class Azure Resource Manager integration</text>
+
+  <!-- ─── ROW 2: State Management ─── -->
+  <rect x="0" y="222" width="1200" height="1" fill="rgba(200,134,10,0.08)"/>
+  <rect x="0" y="222" width="120" height="90" fill="rgba(0,0,0,0.3)"/>
+  <text x="60" y="265" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">STATE</text>
+  <text x="60" y="282" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">MGMT</text>
+
+  <rect x="124" y="232" width="460" height="68" rx="6" fill="#7c3aed" fill-opacity="0.07" stroke="#a78bfa" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="144" y="260" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#c4b5fd">Stateful — remote state required</text>
+  <text x="144" y="282" font-family="monospace" font-size="11" fill="#8a7a5a">Azure Blob backend · state lock via Blob lease · drift detection</text>
+
+  <rect x="624" y="232" width="560" height="68" rx="6" fill="#c8860a" fill-opacity="0.06" stroke="#c8860a" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="644" y="260" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#fcd34d">Stateless — ARM tracks everything</text>
+  <text x="644" y="282" font-family="monospace" font-size="11" fill="#8a7a5a">No state file to maintain · complete mode wipes unmanaged resources</text>
+
+  <!-- ─── ROW 3: Azure Feature Lag ─── -->
+  <rect x="0" y="312" width="1200" height="1" fill="rgba(200,134,10,0.08)"/>
+  <rect x="0" y="312" width="120" height="90" fill="rgba(0,0,0,0.3)"/>
+  <text x="60" y="352" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">AZURE</text>
+  <text x="60" y="369" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">FEATURE</text>
+  <text x="60" y="386" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">LAG</text>
+
+  <rect x="124" y="322" width="460" height="68" rx="6" fill="#f87171" fill-opacity="0.05" stroke="#f87171" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="144" y="350" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#fca5a5">Weeks to months behind Azure releases</text>
+  <text x="144" y="372" font-family="monospace" font-size="11" fill="#8a7a5a">azurerm provider maintainers must code + test each new API version</text>
+
+  <rect x="624" y="322" width="560" height="68" rx="6" fill="#22c55e" fill-opacity="0.05" stroke="#22c55e" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="644" y="350" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#86efac">Day-zero support for all Azure features</text>
+  <text x="644" y="372" font-family="monospace" font-size="11" fill="#8a7a5a">Uses ARM API versions directly · new preview APIs available immediately</text>
+
+  <!-- ─── ROW 4: Language ─── -->
+  <rect x="0" y="402" width="1200" height="1" fill="rgba(200,134,10,0.08)"/>
+  <rect x="0" y="402" width="120" height="90" fill="rgba(0,0,0,0.3)"/>
+  <text x="60" y="445" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">LANGUAGE</text>
+
+  <rect x="124" y="412" width="460" height="68" rx="6" fill="#7c3aed" fill-opacity="0.07" stroke="#a78bfa" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="144" y="440" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#c4b5fd">HCL (HashiCorp Configuration Language)</text>
+  <text x="144" y="462" font-family="monospace" font-size="11" fill="#8a7a5a">for_each · dynamic blocks · locals · modules · meta-arguments</text>
+
+  <rect x="624" y="412" width="560" height="68" rx="6" fill="#c8860a" fill-opacity="0.06" stroke="#c8860a" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="644" y="440" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#fcd34d">Bicep DSL (transpiles to ARM JSON)</text>
+  <text x="644" y="462" font-family="monospace" font-size="11" fill="#8a7a5a">param · var · module · decorator · loop syntax · VS Code Bicep ext</text>
+
+  <!-- ─── ROW 5: Tooling ─── -->
+  <rect x="0" y="492" width="1200" height="1" fill="rgba(200,134,10,0.08)"/>
+  <rect x="0" y="492" width="120" height="90" fill="rgba(0,0,0,0.3)"/>
+  <text x="60" y="540" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">TOOLING</text>
+
+  <rect x="124" y="502" width="460" height="68" rx="6" fill="#7c3aed" fill-opacity="0.07" stroke="#a78bfa" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="144" y="530" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#c4b5fd">terraform plan / apply / destroy</text>
+  <text x="144" y="552" font-family="monospace" font-size="11" fill="#8a7a5a">Spacelift · Atlantis · tfenv · Checkov · TFLint · Sentinel policy</text>
+
+  <rect x="624" y="502" width="560" height="68" rx="6" fill="#c8860a" fill-opacity="0.06" stroke="#c8860a" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="644" y="530" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#fcd34d">az deployment · what-if · VS Code ext</text>
+  <text x="644" y="552" font-family="monospace" font-size="11" fill="#8a7a5a">az bicep build · AzOps · Deployment Stacks · PSRule for Azure</text>
+
+  <!-- ─── ROW 6: Testing ─── -->
+  <rect x="0" y="582" width="1200" height="1" fill="rgba(200,134,10,0.08)"/>
+  <rect x="0" y="582" width="120" height="90" fill="rgba(0,0,0,0.3)"/>
+  <text x="60" y="630" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">TESTING</text>
+
+  <rect x="124" y="592" width="460" height="68" rx="6" fill="#7c3aed" fill-opacity="0.07" stroke="#a78bfa" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="144" y="620" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#c4b5fd">Terratest · TFLint · Checkov · plan JSON</text>
+  <text x="144" y="642" font-family="monospace" font-size="11" fill="#8a7a5a">Unit test with Go · plan output assertions · policy-as-code via Sentinel</text>
+
+  <rect x="624" y="592" width="560" height="68" rx="6" fill="#c8860a" fill-opacity="0.06" stroke="#c8860a" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="644" y="620" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#fcd34d">PSRule for Azure · what-if assertions</text>
+  <text x="644" y="642" font-family="monospace" font-size="11" fill="#8a7a5a">Pester tests · az deployment what-if in CI · Deployment Stacks preview</text>
+
+  <!-- ─── ROW 7: Best For ─── -->
+  <rect x="0" y="672" width="1200" height="1" fill="rgba(200,134,10,0.08)"/>
+  <rect x="0" y="672" width="1200" height="90" fill="rgba(255,255,255,0.02)"/>
+  <rect x="0" y="672" width="120" height="90" fill="rgba(0,0,0,0.3)"/>
+  <text x="60" y="712" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">BEST</text>
+  <text x="60" y="729" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#8a7a5a" letter-spacing="0.06em">FOR</text>
+
+  <rect x="124" y="682" width="460" height="70" rx="6" fill="#7c3aed" fill-opacity="0.1" stroke="#a78bfa" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="144" y="706" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#c4b5fd">Platform infra · multi-cloud orgs · large module</text>
+  <text x="144" y="724" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#c4b5fd">libraries · teams already skilled in HCL</text>
+  <text x="144" y="744" font-family="monospace" font-size="10" fill="#7c3aed" fill-opacity="0.7">VNets · DNS · Policy · cross-cloud workloads</text>
+
+  <rect x="624" y="682" width="560" height="70" rx="6" fill="#c8860a" fill-opacity="0.08" stroke="#c8860a" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="644" y="706" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#fcd34d">Azure-only shops · app resource deployments ·</text>
+  <text x="644" y="724" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#fcd34d">cutting-edge Azure preview features</text>
+  <text x="644" y="744" font-family="monospace" font-size="10" fill="#c8860a" fill-opacity="0.7">App Service · AKS configs · day-zero API support</text>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="762" width="1200" height="38" fill="rgba(5,13,26,0.98)"/>
+  <line x1="0" y1="762" x2="1200" y2="762" stroke="#c8860a" stroke-opacity="0.15" stroke-width="1"/>
+  <text x="600" y="786" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#5a4a2a" letter-spacing="0.06em">AZUREFIXES.COM — The practical answer for most Azure teams: Terraform for platform infra, Bicep for app resources</text>
+</svg>
