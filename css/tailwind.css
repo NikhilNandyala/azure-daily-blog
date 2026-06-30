@@ -408,3 +408,51 @@ input:-webkit-autofill:focus {
   display: inline-block;
   vertical-align: middle;
 }
+
+/* ── Blog post overflow containment ─────────────────────────── */
+
+.prose {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.prose pre,
+.prose table,
+.prose img,
+.prose iframe,
+.prose video {
+  max-width: 100%;
+}
+
+.prose pre {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.prose p,
+.prose li,
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Thin amber scrollbar on code blocks */
+.prose pre::-webkit-scrollbar {
+  height: 6px;
+}
+
+.prose pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prose pre::-webkit-scrollbar-thumb {
+  background: rgba(200,134,10,0.3);
+  border-radius: 3px;
+}
+
+.prose pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(240,165,0,0.5);
+}

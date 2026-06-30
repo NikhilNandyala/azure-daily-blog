@@ -102,6 +102,8 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
             border: '0.5px solid rgba(200,134,10,0.1)',
             maxWidth: '900px',
             margin: '0 auto',
+            boxSizing: 'border-box',
+            overflowX: 'hidden',
           }}
         >
           {/* Cover image */}
@@ -175,7 +177,7 @@ export default async function PostPage(props: { params: Promise<{ slug: string[]
 
           {/* Content + ToC sidebar */}
           <div className="xl:grid xl:grid-cols-[1fr_240px] xl:gap-10">
-            <div className="prose dark:prose-invert max-w-none py-6">
+            <div className="prose dark:prose-invert max-w-none py-6" style={{ minWidth: 0, overflowWrap: 'break-word', wordBreak: 'break-word' }}>
               <MDXRenderer code={post.body.code} />
             </div>
 

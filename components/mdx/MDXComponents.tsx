@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 
-type Props = { children?: ReactNode; className?: string; href?: string; [key: string]: unknown }
+type Props = { children?: ReactNode; className?: string; href?: string; src?: string; alt?: string; [key: string]: unknown }
 
 export const mdxComponents = {
   h1: ({ children }: Props) => (
@@ -34,17 +34,34 @@ export const mdxComponents = {
     </a>
   ),
   code: ({ children, className }: Props) => {
-    if (!className) {
-      return (
-        <code style={{ background: 'rgba(200,134,10,0.1)', border: '0.5px solid rgba(200,134,10,0.3)', color: '#ffd166', borderRadius: 4, padding: '2px 6px', fontSize: '0.875em', fontFamily: 'monospace' }}>
-          {children}
-        </code>
-      )
+    if (className) {
+      return <code className={className as string}>{children}</code>
     }
-    return <code className={className as string}>{children}</code>
+    return (
+      <code style={{ background: 'rgba(200,134,10,0.1)', border: '0.5px solid rgba(200,134,10,0.3)', color: '#ffd166', borderRadius: 4, padding: '2px 6px', fontSize: '0.875em', fontFamily: 'monospace', wordBreak: 'break-word', whiteSpace: 'break-spaces' }}>
+        {children}
+      </code>
+    )
   },
   pre: ({ children }: Props) => (
-    <pre style={{ background: 'rgba(10,22,40,0.98)', border: '1px solid rgba(0,120,212,0.2)', borderRadius: 10, padding: '1.25rem', overflow: 'auto', marginBottom: '1.5rem', fontSize: '0.875rem', lineHeight: 1.7, boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}>
+    <pre style={{
+      background: 'rgba(10,22,40,0.98)',
+      border: '1px solid rgba(0,120,212,0.2)',
+      borderRadius: 10,
+      padding: '1.25rem',
+      marginBottom: '1.5rem',
+      fontSize: '0.875rem',
+      lineHeight: 1.7,
+      boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+      overflowX: 'auto',
+      overflowY: 'hidden',
+      maxWidth: '100%',
+      width: '100%',
+      boxSizing: 'border-box',
+      whiteSpace: 'pre',
+      scrollbarWidth: 'thin',
+      scrollbarColor: 'rgba(200,134,10,0.3) transparent',
+    }}>
       {children}
     </pre>
   ),
@@ -73,8 +90,8 @@ export const mdxComponents = {
     <strong style={{ color: '#ffeaa0', fontWeight: 600 }}>{children}</strong>
   ),
   table: ({ children }: Props) => (
-    <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+    <div style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', marginBottom: '1.5rem', borderRadius: '10px', border: '0.5px solid rgba(200,134,10,0.2)' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', tableLayout: 'auto' }}>
         {children}
       </table>
     </div>
@@ -88,5 +105,12 @@ export const mdxComponents = {
     <td style={{ color: '#b8a882', padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
       {children}
     </td>
+  ),
+  img: ({ src, alt }: Props) => (
+    <img
+      src={src as string}
+      alt={(alt as string) ?? ''}
+      style={{ maxWidth: '100%', height: 'auto', borderRadius: '10px', margin: '1.5rem 0', border: '1px solid rgba(200,134,10,0.15)', display: 'block' }}
+    />
   ),
 }
