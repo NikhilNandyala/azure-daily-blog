@@ -1,0 +1,165 @@
+---
+title: 'Enterprise Customer Portal on Azure'
+description: 'Three-tier enterprise web portal on Azure with global edge security via Front Door + App Gateway WAF, private-networked SQL, Terraform IaC, and Azure DevOps CI/CD with DEV → UAT → PROD promotion gates and Playwright cross-browser E2E testing.'
+techStack: ['Terraform', 'Azure Front Door', 'App Gateway WAF', 'Azure App Service', '.NET 8', 'React', 'Azure SQL', 'Key Vault', 'Azure DevOps', 'Playwright', 'Redis', 'Service Bus']
+githubUrl: ''
+demoUrl: ''
+status: active
+featured: true
+category: architecture
+date: '2026-06-29'
+coverImage: '/images/projects/enterprise-customer-portal-cover.svg'
+---
+
+## Architecture Overview
+
+<img src="/images/projects/enterprise-portal-architecture.svg" alt="Enterprise Customer Portal — full Azure architecture diagram showing Front Door, App Gateway WAF, VNet with App Services and private SQL, shared services, monitoring, and CI/CD pipeline" />
+
+The portal follows a strict three-tier separation across a single VNet (`10.0.0.0/16`), with all PaaS services accessed via Private Endpoints so no traffic ever traverses the public internet once it enters the Azure boundary.
+
+**Request flow:**
+
+```
+Users (HTTPS)
+  → Azure Front Door (global entry, DDoS, TLS termination)
+    → App Gateway WAF_v2 (L7 routing, OWASP 3.2, SSL offload, health probes)
+      → Frontend App Service (React, HTTPS-only, autoscale, app-subnet)
+        → Backend API App Service (.NET 8, Managed Identity, autoscale, app-subnet)
+          → Azure SQL Database (Private Endpoint, zone-redundant, data-subnet)
+```
+
+---
+
+## Infrastructure as Code (Terraform)
+
+All resources are provisioned with Terraform using a module-per-layer structure.
+Remote state is stored in Azure Blob Storage with soft-delete and versioning enabled.
+
+**Module layout:**
+
+```
+infra/
+├── modules/
+│   ├── network/      # VNet, subnets, NSGs
+│   ├── security/     # Key Vault (RBAC mode), Entra ID role assignments
+│   ├── data/         # Azure SQL + Private Endpoint + Private DNS zone
+│   ├── shared/       # Storage (GRS), Service Bus, Redis, App Configuration
+│   ├── appservice/   # Service Plans, Web Apps, VNet integration, autoscale
+│   ├── edge/         # Front Door Premium, App Gateway WAF_v2, WAF policy
+│   └── monitoring/   # Log Analytics Workspace, App Insights, Action Group, alerts
+└── env/
+    ├── dev.tfvars
+    ├── uat.tfvars
+    └── prod.tfvars
+```
+
+The same code produces all three environments via parameterized `env.tfvars` files. Key security decisions baked in:
+
+- SQL Server: `public_network_access_enabled = false` — private endpoint only
+- App Services: `https_only = true`, `minimum_tls_version = "1.2"`, `ftps_state = "Disabled"`
+- Key Vault: `enable_rbac_authorization = true`, `purge_protection_enabled = true`
+- Storage: `allow_nested_items_to_be_public = false`, GRS replication
+- WAF Policy: `mode = "Prevention"`, OWASP 3.2 ruleset
+
+---
+
+## Application Tier
+
+**Backend API** — .NET 8 Web API on Azure App Service (Linux, P1v3). Uses a **system-assigned managed identity** to authenticate to Key Vault, Azure SQL, Storage, and Service Bus — no secrets in app settings.
+
+```bash
+# Managed identity connection string (no passwords)
+Server=tcp:sql-portal-prod.database.windows.net,1433;
+Authentication=Active Directory Default;
+Database=portaldb;
+```
+
+**Frontend** — React static build served from Azure App Service (Node 20 LTS). HTTPS-only. Both apps are VNet-integrated to `app-subnet` and autoscale on CPU > 70% (min 2, max 10 instances).
+
+---
+
+## Edge Security
+
+**Azure Front Door Premium** — global entry point handling TLS, DDoS protection, geo-routing, and caching. Routes to the regional App Gateway.
+
+**Application Gateway WAF_v2** — regional L7 load balancer in `appgw-subnet` (dedicated, not delegated). Runs OWASP 3.2 managed ruleset in Prevention mode. Backend health probe hits `/health` on the App Service to detect unhealthy instances before routing traffic.
+
+---
+
+## Data & Networking
+
+**Azure SQL Database** — zone-redundant, PITR backups (7-day short-term retention), accessible only via Private Endpoint in `data-subnet`. Public network access is disabled at the server level.
+
+**Private DNS Zone** — `privatelink.database.windows.net` linked to the VNet ensures the SQL FQDN resolves to `10.0.2.x` from inside the VNet. Without this, traffic would route via the public IP even if a private endpoint exists.
+
+**Shared Services** — Key Vault, Storage (GRS), Service Bus (Standard), Redis Cache (Standard C1), and App Configuration all live as shared resources. Production deployments add Private Endpoints for each to keep all PaaS traffic on the VNet.
+
+---
+
+## Azure DevOps CI/CD Pipeline
+
+Five-stage pipeline from commit to production:
+
+| Stage | Trigger | Key actions |
+|-------|---------|------------|
+| **Build** | Push to `main` | Restore, build, unit test, security scan, publish artifacts |
+| **DEV Deploy** | After Build | Terraform apply (dev.tfvars), deploy API + Web, Playwright E2E suite |
+| **Approval Gate** | After DEV | Named reviewer approval required in Azure DevOps |
+| **UAT Deploy** | After Gate | Terraform apply (uat.tfvars), deploy artifacts |
+| **PROD Deploy** | Manual approval | Terraform apply, deploy to staging slot, health check, swap |
+
+The PROD stage uses **blue/green deployment** — the new build deploys to the `staging` slot, a `/health` endpoint is polled until 200 OK, then slots are swapped. If the health check fails, the production slot is never touched.
+
+---
+
+## End-to-End Testing (Playwright)
+
+Playwright runs cross-browser E2E tests as a deploy gate on the DEV environment after every deployment.
+
+**Test coverage:**
+
+- Home page loads over HTTPS and returns HTTP 200
+- Frontend successfully reaches the backend `/api/health` endpoint
+- Sign-in flow redirects to `login.microsoftonline.com` (Entra ID)
+- HSTS and security headers are present in responses
+
+**Browsers tested:** Chromium, Firefox, WebKit (Safari), iPhone 13 (mobile)
+
+```bash
+# Run against any deployed environment
+BASE_URL=https://app-portal-web-dev.azurewebsites.net npx playwright test
+```
+
+Playwright reports are published as pipeline artifacts so failures are visible alongside the deployment log.
+
+---
+
+## Monitoring & Observability
+
+All resources send diagnostic logs to a central **Log Analytics Workspace**. **Application Insights** instruments both the API and frontend for request tracing, dependency tracking, and custom metrics.
+
+**Action Group** fans out alerts to Email, SMS, and Teams webhook. Example alert: API HTTP 5xx rate > 10 in any 5-minute window.
+
+```kusto
+// KQL — 5-minute error summary
+requests
+| where timestamp > ago(5m)
+| summarize count() by resultCode
+| where resultCode startswith "5"
+| order by count_ desc
+```
+
+---
+
+## Validation Checklist
+
+| Check | How to verify |
+|-------|--------------|
+| SQL private-only | Portal → SQL Server → Networking → Public access = Disabled |
+| Private endpoint DNS | `nslookup sql-portal-dev.database.windows.net` from VNet host → 10.0.2.x |
+| HTTPS-only | `az webapp show --query httpsOnly` → `true` |
+| Managed identity auth | App logs show secret retrieval — no 403 errors |
+| App Gateway probe | Portal → App Gateway → Backend health = Healthy |
+| Telemetry flowing | App Insights → Live Metrics shows live request stream |
+| E2E suite | Playwright report: all specs green across 4 browsers |
+| Blue/green swap | Staging slot health check passes, swap completes without downtime |
