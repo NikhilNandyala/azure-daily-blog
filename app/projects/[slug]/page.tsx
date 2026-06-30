@@ -58,7 +58,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   const hasExternalLinks = project.githubUrl || project.demoUrl
 
   return (
-    <article className="mx-auto max-w-4xl">
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '0 24px 80px', boxSizing: 'border-box' }}>
       {/* Back Navigation */}
       <div className="mb-6">
         <Link
@@ -148,13 +148,41 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
         </section>
       )}
 
-      {/* Project Body */}
-      <section className="prose prose-invert mb-12 max-w-none">
-        <MDXRenderer code={project.body.code} />
-      </section>
+      {/* Project Body — blog-style article container */}
+      <article
+        style={{
+          position: 'relative',
+          background: 'rgba(5, 13, 26, 0.55)',
+          backdropFilter: 'blur(2px)',
+          WebkitBackdropFilter: 'blur(2px)',
+          border: '0.5px solid rgba(200, 134, 10, 0.1)',
+          borderRadius: '16px',
+          padding: '40px 48px',
+          boxSizing: 'border-box',
+          overflowX: 'hidden',
+          marginBottom: '32px',
+        }}
+      >
+        {/* Gold top accent line */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '2px',
+            background: 'linear-gradient(90deg, transparent, #c8860a, #f0a500, #ffd166, transparent)',
+            borderRadius: '16px 16px 0 0',
+            opacity: 0.7,
+          }}
+        />
+        <div className="prose dark:prose-invert max-w-none" style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+          <MDXRenderer code={project.body.code} />
+        </div>
+      </article>
 
       {/* Back to Projects Link */}
-      <div className="mt-12 border-t border-gray-800 pt-8">
+      <div className="mt-8 border-t pt-8" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
         <Link
           href="/projects"
           className="inline-flex items-center gap-2 text-sm text-[#8a7a5a] transition-colors hover:text-[#f0a500]"
@@ -166,6 +194,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
           Back to all projects
         </Link>
       </div>
-    </article>
+    </div>
   )
 }
