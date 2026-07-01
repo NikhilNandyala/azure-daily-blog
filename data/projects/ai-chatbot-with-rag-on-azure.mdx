@@ -1,0 +1,1604 @@
+---
+title: 'AI Chatbot with RAG on Azure'
+description: 'A 20-phase end-to-end guide to building a production-grade Retrieval-Augmented Generation chatbot on Azure: FastAPI backend, Next.js frontend, Azure AI Search vector store, GPT-4o, AKS deployment, Workload Identity, GitHub Actions CI/CD, and Container Insights monitoring. Targets cloud beginners — every command explained, every concept introduced before use.'
+techStack: ['Python', 'FastAPI', 'Next.js', 'Azure OpenAI', 'Azure AI Search', 'AKS', 'Helm', 'Docker', 'ACR', 'Key Vault', 'Blob Storage', 'Workload Identity', 'GitHub Actions', 'Terraform']
+githubUrl: ''
+demoUrl: ''
+status: active
+featured: true
+category: ai
+projectType: 'end-to-end'
+date: '2026-06-30'
+coverImage: '/images/projects/ai-rag-chatbot-cover.svg'
+---
+
+## What You Will Build
+
+By the end of this guide you will have a working chatbot that answers questions using **your own documents**. Upload a PDF or DOCX file, ask the chatbot a question about it, and GPT-4o will answer using only the content in that file — not its training data.
+
+The stack:
+
+- **FastAPI** backend with two endpoints: `/upload` (ingest documents) and `/chat` (RAG retrieval + GPT completion)
+- **Next.js** frontend with a chat UI and file upload interface
+- **Azure AI Search** as the vector store — stores document chunks + embeddings, returns the most relevant chunks for each query
+- **Azure OpenAI** for embeddings (`text-embedding-3-small`) and chat completion (`gpt-4o`)
+- **Azure Blob Storage** for raw document storage
+- **AKS** (Azure Kubernetes Service) for container orchestration
+- **Key Vault** for secrets — no passwords in code or environment variables
+- **GitHub Actions** for CI/CD — test, scan, build, push, deploy
+
+---
+
+## The Architecture
+
+<DiagramImage
+  src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/AI_Chatbot_with_RAG_on_Azure_ol0en4"
+  alt="Full RAG architecture on Azure: User browser connects to Next.js frontend (AKS). Frontend calls FastAPI backend (AKS). Backend uses Azure OpenAI for embeddings and chat, Azure AI Search for vector retrieval, Azure Blob Storage for document storage. All services connect via private endpoints inside a VNet. Key Vault stores secrets, accessed via Workload Identity. GitHub Actions CI/CD pipeline pushes to ACR and deploys to AKS."
+  caption="Full architecture: Next.js + FastAPI on AKS, private VNet, Azure AI Search vector store, Azure OpenAI GPT-4o, Key Vault via Workload Identity."
+/>
+
+**How RAG works in one paragraph:** When a user uploads a document, the backend splits it into chunks (~512 tokens each), sends each chunk to the embeddings API to get a vector representation, and stores both the text and vector in AI Search. When a user sends a chat message, the backend embeds the question, asks AI Search to return the most similar chunks, then builds a prompt that contains those chunks as context and asks GPT-4o to answer the question using only that context. This prevents hallucination — the model can only say things that are in your documents.
+
+---
+
+## Prerequisites
+
+Before running any commands, you need:
+
+| Requirement | Minimum version / detail |
+|-------------|--------------------------|
+| Azure subscription | Owner or Contributor role |
+| Azure CLI | 2.60+ (`az version`) |
+| kubectl | 1.29+ (`kubectl version --client`) |
+| Helm | 3.14+ (`helm version`) |
+| Docker | 24+ (`docker version`) |
+| Python | 3.11+ (`python --version`) |
+| Node.js | 20 LTS (`node --version`) |
+| GitHub account | For CI/CD — free tier is fine |
+
+**Register Azure resource providers** (one-time per subscription):
+
+```bash
+az provider register --namespace Microsoft.ContainerService   # AKS
+az provider register --namespace Microsoft.ContainerRegistry  # ACR
+az provider register --namespace Microsoft.KeyVault
+az provider register --namespace Microsoft.Storage
+az provider register --namespace Microsoft.CognitiveServices  # Azure OpenAI
+az provider register --namespace Microsoft.Search             # AI Search
+az provider register --namespace Microsoft.Network
+az provider register --namespace Microsoft.Insights
+az provider register --namespace Microsoft.OperationalInsights
+```
+
+---
+
+## Phase 1 — Resource Group and Variables
+
+Create a resource group to hold everything. Using a single resource group for this project makes cleanup easy — one `az group delete` removes everything.
+
+```bash
+# Set these once — every command below references them
+LOCATION="eastus"
+RG="rg-rag-chatbot"
+PREFIX="ragbot"
+SUBSCRIPTION=$(az account show --query id -o tsv)
+
+az group create \
+  --name $RG \
+  --location $LOCATION \
+  --tags project=rag-chatbot environment=dev
+
+echo "Resource group created: $RG in $LOCATION"
+```
+
+**Why East US?** Azure OpenAI GPT-4o and `text-embedding-3-small` are available in East US. Check [Azure OpenAI region availability](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-availability) before choosing a different region — not all models are available everywhere.
+
+---
+
+## Phase 2 — Azure Blob Storage
+
+Blob Storage stores the raw uploaded documents before they are chunked and indexed.
+
+```bash
+STORAGE_NAME="${PREFIX}docs$(openssl rand -hex 4)"
+
+az storage account create \
+  --name $STORAGE_NAME \
+  --resource-group $RG \
+  --location $LOCATION \
+  --sku Standard_LRS \
+  --kind StorageV2 \
+  --allow-blob-public-access false \
+  --min-tls-version TLS1_2
+
+# Create a container for uploaded documents
+az storage container create \
+  --name docs \
+  --account-name $STORAGE_NAME \
+  --auth-mode login
+
+echo "Storage account: $STORAGE_NAME"
+echo "Container: docs"
+```
+
+`allow-blob-public-access false` is critical. Without it, anyone who guesses a blob URL can download your users' uploaded documents. This setting can't be changed after the fact without interrupting access.
+
+---
+
+## Phase 3 — Azure AI Search
+
+AI Search stores the document chunks and their vector embeddings. When a user asks a question, AI Search finds the most semantically similar chunks using vector search.
+
+```bash
+SEARCH_NAME="${PREFIX}-search"
+
+az search service create \
+  --name $SEARCH_NAME \
+  --resource-group $RG \
+  --location $LOCATION \
+  --sku basic \
+  --partition-count 1 \
+  --replica-count 1
+
+# Wait for provisioning (~2 minutes)
+az search service show \
+  --name $SEARCH_NAME \
+  --resource-group $RG \
+  --query provisioningState
+
+# Get admin key (needed to create the index)
+SEARCH_ADMIN_KEY=$(az search admin-key show \
+  --service-name $SEARCH_NAME \
+  --resource-group $RG \
+  --query primaryKey -o tsv)
+
+echo "Search endpoint: https://${SEARCH_NAME}.search.windows.net"
+```
+
+**SKU choice:** Basic supports semantic ranking and vector search, which are required for RAG. The Free tier does not support vector fields. For production use Standard S1 or higher.
+
+Create the search index schema — this defines the fields that each document chunk will have:
+
+```python
+# scripts/create_index.py
+import os
+from azure.search.documents.indexes import SearchIndexClient
+from azure.search.documents.indexes.models import (
+    SearchIndex, SimpleField, SearchFieldDataType,
+    SearchableField, SearchField, VectorSearch,
+    HnswAlgorithmConfiguration, VectorSearchProfile
+)
+from azure.core.credentials import AzureKeyCredential
+
+endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+key = os.environ["AZURE_SEARCH_KEY"]
+
+client = SearchIndexClient(endpoint, AzureKeyCredential(key))
+
+fields = [
+    SimpleField(name="id", type=SearchFieldDataType.String, key=True),
+    SearchableField(name="content", type=SearchFieldDataType.String),
+    SimpleField(name="source_file", type=SearchFieldDataType.String, filterable=True),
+    SimpleField(name="page_number", type=SearchFieldDataType.Int32),
+    SimpleField(name="chunk_index", type=SearchFieldDataType.Int32),
+    SearchField(
+        name="embedding",
+        type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
+        vector_search_dimensions=1536,
+        vector_search_profile_name="hnsw-profile"
+    )
+]
+
+vector_search = VectorSearch(
+    algorithms=[HnswAlgorithmConfiguration(name="hnsw-algo")],
+    profiles=[VectorSearchProfile(name="hnsw-profile", algorithm_configuration_name="hnsw-algo")]
+)
+
+index = SearchIndex(name="documents", fields=fields, vector_search=vector_search)
+client.create_or_update_index(index)
+print("Index created: documents")
+```
+
+```bash
+AZURE_SEARCH_ENDPOINT="https://${SEARCH_NAME}.search.windows.net" \
+AZURE_SEARCH_KEY="$SEARCH_ADMIN_KEY" \
+  python scripts/create_index.py
+```
+
+---
+
+## Phase 4 — Azure OpenAI
+
+```bash
+OPENAI_NAME="${PREFIX}-openai"
+
+az cognitiveservices account create \
+  --name $OPENAI_NAME \
+  --resource-group $RG \
+  --location $LOCATION \
+  --kind OpenAI \
+  --sku S0 \
+  --yes
+
+# Wait ~3 minutes for provisioning
+# Deploy GPT-4o for chat completions
+az cognitiveservices account deployment create \
+  --name $OPENAI_NAME \
+  --resource-group $RG \
+  --deployment-name gpt-4o \
+  --model-name gpt-4o \
+  --model-version "2024-11-20" \
+  --model-format OpenAI \
+  --sku-capacity 10 \
+  --sku-name "Standard"
+
+# Deploy text-embedding-3-small for embeddings
+az cognitiveservices account deployment create \
+  --name $OPENAI_NAME \
+  --resource-group $RG \
+  --deployment-name text-embedding-3-small \
+  --model-name text-embedding-3-small \
+  --model-version "1" \
+  --model-format OpenAI \
+  --sku-capacity 10 \
+  --sku-name "Standard"
+
+OPENAI_ENDPOINT=$(az cognitiveservices account show \
+  --name $OPENAI_NAME \
+  --resource-group $RG \
+  --query properties.endpoint -o tsv)
+
+echo "OpenAI endpoint: $OPENAI_ENDPOINT"
+```
+
+**Quota note:** The `--sku-capacity 10` means 10K tokens per minute. For a single-user dev environment this is plenty. For production, request a quota increase via the Azure portal before deploying.
+
+---
+
+## Phase 5 — Key Vault
+
+All secrets (API keys, connection strings) live in Key Vault. The FastAPI backend never reads secrets from environment variables — it uses the Azure SDK to fetch them at runtime via Managed Identity.
+
+```bash
+KV_NAME="${PREFIX}-kv-$(openssl rand -hex 3)"
+
+az keyvault create \
+  --name $KV_NAME \
+  --resource-group $RG \
+  --location $LOCATION \
+  --sku standard \
+  --enable-rbac-authorization true \
+  --enable-soft-delete true \
+  --soft-delete-retention-days 90
+
+# Store the secrets we have so far
+OPENAI_KEY=$(az cognitiveservices account keys list \
+  --name $OPENAI_NAME --resource-group $RG --query key1 -o tsv)
+
+az keyvault secret set --vault-name $KV_NAME \
+  --name "openai-api-key" --value "$OPENAI_KEY"
+
+az keyvault secret set --vault-name $KV_NAME \
+  --name "openai-endpoint" --value "$OPENAI_ENDPOINT"
+
+az keyvault secret set --vault-name $KV_NAME \
+  --name "search-endpoint" --value "https://${SEARCH_NAME}.search.windows.net"
+
+az keyvault secret set --vault-name $KV_NAME \
+  --name "search-admin-key" --value "$SEARCH_ADMIN_KEY"
+
+STORAGE_CONN=$(az storage account show-connection-string \
+  --name $STORAGE_NAME --resource-group $RG --query connectionString -o tsv)
+
+az keyvault secret set --vault-name $KV_NAME \
+  --name "storage-connection-string" --value "$STORAGE_CONN"
+
+echo "Key Vault: $KV_NAME — 5 secrets stored"
+```
+
+---
+
+## Phase 6 — Folder Structure
+
+```
+rag-chatbot/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI app + routes
+│   │   ├── ingest.py            # Upload + chunking + embedding
+│   │   ├── chat.py              # RAG retrieval + GPT completion
+│   │   ├── config.py            # Key Vault secret loading
+│   │   └── models.py            # Pydantic request/response models
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── app/
+│   │   ├── page.tsx             # Home — chat interface
+│   │   ├── components/
+│   │   │   ├── ChatInterface.tsx
+│   │   │   ├── MessageList.tsx
+│   │   │   └── FileUpload.tsx
+│   │   └── api/
+│   │       └── chat/route.ts    # Next.js Server Action → backend
+│   ├── Dockerfile
+│   └── package.json
+├── helm/
+│   └── rag-chatbot/
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       ├── values-prod.yaml
+│       └── templates/
+│           ├── deployment-backend.yaml
+│           ├── deployment-frontend.yaml
+│           ├── service.yaml
+│           ├── ingress.yaml
+│           ├── hpa.yaml
+│           └── serviceaccount.yaml
+├── .github/
+│   └── workflows/
+│       ├── ci.yml               # Build + test + scan
+│       └── deploy.yml           # Push ACR + deploy AKS
+└── scripts/
+    ├── create_index.py
+    └── bootstrap.sh
+```
+
+---
+
+## Phase 7 — FastAPI Backend
+
+`backend/app/config.py` — loads secrets from Key Vault at startup:
+
+```python
+import os
+from functools import lru_cache
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+
+@lru_cache(maxsize=None)
+def get_secret(name: str) -> str:
+    kv_uri = os.environ["KEY_VAULT_URI"]  # only env var the app needs
+    client = SecretClient(vault_url=kv_uri, credential=DefaultAzureCredential())
+    return client.get_secret(name).value
+```
+
+`backend/app/ingest.py` — document ingestion:
+
+```python
+import hashlib
+import io
+from typing import BinaryIO
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from openai import AzureOpenAI
+from azure.storage.blob import BlobServiceClient
+from azure.search.documents import SearchClient
+from azure.core.credentials import AzureKeyCredential
+from .config import get_secret
+
+def get_openai_client() -> AzureOpenAI:
+    return AzureOpenAI(
+        azure_endpoint=get_secret("openai-endpoint"),
+        api_key=get_secret("openai-api-key"),
+        api_version="2024-10-21",
+    )
+
+def embed(texts: list[str]) -> list[list[float]]:
+    client = get_openai_client()
+    response = client.embeddings.create(
+        input=texts,
+        model="text-embedding-3-small",
+    )
+    return [item.embedding for item in response.data]
+
+def get_search_client() -> SearchClient:
+    return SearchClient(
+        endpoint=get_secret("search-endpoint"),
+        index_name="documents",
+        credential=AzureKeyCredential(get_secret("search-admin-key")),
+    )
+
+def upload_to_blob(filename: str, content: bytes) -> str:
+    conn_str = get_secret("storage-connection-string")
+    blob_client = BlobServiceClient.from_connection_string(conn_str)
+    container = blob_client.get_container_client("docs")
+    container.upload_blob(name=filename, data=content, overwrite=True)
+    return filename
+
+def extract_text(filename: str, content: bytes) -> str:
+    if filename.endswith(".pdf"):
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    elif filename.endswith(".docx"):
+        import docx
+        doc = docx.Document(io.BytesIO(content))
+        return "\n".join(para.text for para in doc.paragraphs)
+    elif filename.endswith(".txt"):
+        return content.decode("utf-8", errors="replace")
+    else:
+        raise ValueError(f"Unsupported file type: {filename}")
+
+def ingest_document(filename: str, content: bytes) -> dict:
+    # 1. Store raw file in Blob Storage
+    upload_to_blob(filename, content)
+
+    # 2. Extract text
+    text = extract_text(filename, content)
+
+    # 3. Chunk into 512-token segments with 64-token overlap
+    splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=64)
+    chunks = splitter.split_text(text)
+
+    # 4. Get embeddings for all chunks (batch of 100)
+    all_embeddings = []
+    for i in range(0, len(chunks), 100):
+        batch = chunks[i : i + 100]
+        all_embeddings.extend(embed(batch))
+
+    # 5. Build search documents
+    documents = []
+    file_hash = hashlib.md5(content).hexdigest()[:8]
+    for idx, (chunk, embedding) in enumerate(zip(chunks, all_embeddings)):
+        documents.append({
+            "id": f"{file_hash}-{idx}",
+            "content": chunk,
+            "source_file": filename,
+            "page_number": 0,
+            "chunk_index": idx,
+            "embedding": embedding,
+        })
+
+    # 6. Upload to AI Search index
+    search = get_search_client()
+    results = search.upload_documents(documents=documents)
+    succeeded = sum(1 for r in results if r.succeeded)
+
+    return {
+        "filename": filename,
+        "chunks": len(chunks),
+        "indexed": succeeded,
+    }
+```
+
+Document ingestion pipeline:
+
+<DiagramImage
+  src="/images/projects/upload-flow.svg"
+  alt="7-step document ingestion flow: (1) User uploads PDF/DOCX via POST /upload, (2) file stored in Blob Storage docs container, (3) FastAPI ingest endpoint reads from storage, (4) LangChain RecursiveCharacterTextSplitter produces 512-token chunks with 64-token overlap, (5) Azure OpenAI text-embedding-3-small converts each chunk to a 1536-dimensional vector, (6) AI Search hybrid index stores chunk text + vector, (7) confirmed indexed."
+  caption="Document ingestion: file → Blob Storage → chunk → embed → AI Search vector index. Each chunk stored with its 1536-dim embedding for vector retrieval."
+/>
+
+`backend/app/chat.py` — RAG retrieval and streaming:
+
+```python
+from typing import AsyncGenerator
+from openai import AzureOpenAI
+from azure.search.documents import SearchClient
+from azure.search.documents.models import VectorizedQuery
+from azure.core.credentials import AzureKeyCredential
+from .config import get_secret
+
+SYSTEM_PROMPT = """You are a helpful assistant. Answer questions based ONLY on the context provided below.
+If the answer is not in the context, say "I don't know based on the provided documents."
+Do not use any knowledge outside the provided context. Cite the source file when possible."""
+
+def retrieve_chunks(query: str, top_k: int = 5) -> list[dict]:
+    # Embed the user's query
+    from openai import AzureOpenAI
+    openai_client = AzureOpenAI(
+        azure_endpoint=get_secret("openai-endpoint"),
+        api_key=get_secret("openai-api-key"),
+        api_version="2024-10-21",
+    )
+    query_embedding = openai_client.embeddings.create(
+        input=[query],
+        model="text-embedding-3-small",
+    ).data[0].embedding
+
+    # Hybrid search: vector similarity + BM25 keyword match
+    search_client = SearchClient(
+        endpoint=get_secret("search-endpoint"),
+        index_name="documents",
+        credential=AzureKeyCredential(get_secret("search-admin-key")),
+    )
+    results = search_client.search(
+        search_text=query,  # BM25 keyword search
+        vector_queries=[
+            VectorizedQuery(
+                vector=query_embedding,
+                k_nearest_neighbors=top_k,
+                fields="embedding",
+            )
+        ],
+        top=top_k,
+        select=["content", "source_file", "chunk_index"],
+    )
+    return [{"content": r["content"], "source": r["source_file"]} for r in results]
+
+def build_context(chunks: list[dict]) -> str:
+    parts = []
+    for i, chunk in enumerate(chunks, 1):
+        parts.append(f"[Source: {chunk['source']}]\n{chunk['content']}")
+    return "\n\n---\n\n".join(parts)
+
+async def stream_chat(
+    question: str, history: list[dict]
+) -> AsyncGenerator[str, None]:
+    chunks = retrieve_chunks(question)
+    context = build_context(chunks)
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
+    ]
+
+    openai_client = AzureOpenAI(
+        azure_endpoint=get_secret("openai-endpoint"),
+        api_key=get_secret("openai-api-key"),
+        api_version="2024-10-21",
+    )
+
+    stream = openai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        stream=True,
+        temperature=0,
+        max_tokens=1024,
+    )
+
+    for event in stream:
+        if event.choices and event.choices[0].delta.content:
+            yield event.choices[0].delta.content
+```
+
+RAG chat retrieval pipeline:
+
+<DiagramImage
+  src="/images/projects/chat-flow.svg"
+  alt="7-step RAG retrieval flow: (1) User types question in React UI, (2) Next.js Server Action sends POST /api/chat, (3) FastAPI embeds the question with text-embedding-3-small, (4) AI Search returns top-5 semantically similar chunks via hybrid search (vector + BM25), (5) FastAPI builds a system prompt with the chunk content as context, (6) GPT-4o streams a grounded completion using only the provided context, (7) response streams back to the browser via SSE chunks."
+  caption="RAG retrieval: question → embed → AI Search hybrid search → build context prompt → GPT-4o streaming → browser. Temperature=0 for deterministic, grounded answers."
+/>
+
+`backend/app/main.py`:
+
+```python
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from .ingest import ingest_document
+from .chat import stream_chat
+
+app = FastAPI(title="RAG Chatbot API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://your-frontend-domain.com"],  # tighten before prod
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+class ChatRequest(BaseModel):
+    question: str
+    history: list[dict] = []
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
+@app.post("/upload")
+async def upload(file: UploadFile = File(...)):
+    if file.size and file.size > 50 * 1024 * 1024:  # 50MB limit
+        raise HTTPException(status_code=413, detail="File too large (max 50MB)")
+    allowed = {".pdf", ".docx", ".txt"}
+    suffix = "." + file.filename.rsplit(".", 1)[-1].lower()
+    if suffix not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported type. Allowed: {allowed}")
+    content = await file.read()
+    result = ingest_document(file.filename, content)
+    return result
+
+@app.post("/chat")
+async def chat(req: ChatRequest):
+    async def generate():
+        async for token in stream_chat(req.question, req.history):
+            yield f"data: {token}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+```
+
+`backend/requirements.txt`:
+
+```text
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+openai==1.35.3
+azure-identity==1.17.1
+azure-keyvault-secrets==4.8.0
+azure-search-documents==11.6.0
+azure-storage-blob==12.20.0
+langchain-text-splitters==0.2.1
+pypdf==4.2.0
+python-docx==1.1.2
+pydantic==2.7.3
+```
+
+---
+
+## Phase 8 — Next.js Frontend
+
+```bash
+cd frontend
+npx create-next-app@latest . \
+  --typescript \
+  --tailwind \
+  --eslint \
+  --app \
+  --no-src-dir \
+  --import-alias "@/*"
+```
+
+`frontend/app/components/ChatInterface.tsx`:
+
+```tsx
+'use client'
+import { useState, useRef, useEffect } from 'react'
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export default function ChatInterface() {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  async function sendMessage() {
+    if (!input.trim() || loading) return
+    const question = input.trim()
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', content: question }])
+    setLoading(true)
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, history: messages }),
+    })
+
+    if (!response.ok || !response.body) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Error: could not reach backend.' }])
+      setLoading(false)
+      return
+    }
+
+    // Stream SSE response
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let assistantMsg = ''
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      const text = decoder.decode(value)
+      for (const line of text.split('\n')) {
+        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+          assistantMsg += line.slice(6)
+          setMessages(prev => [
+            ...prev.slice(0, -1),
+            { role: 'assistant', content: assistantMsg },
+          ])
+        }
+      }
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="flex flex-col h-screen max-w-3xl mx-auto p-4">
+      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`rounded-2xl px-4 py-2 max-w-[80%] whitespace-pre-wrap text-sm
+              ${msg.role === 'user'
+                ? 'bg-violet-600 text-white'
+                : 'bg-gray-800 text-gray-100'}`}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-800 text-gray-400 rounded-2xl px-4 py-2 text-sm">
+              Thinking…
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef}/>
+      </div>
+      <div className="flex gap-2 mt-4">
+        <input
+          className="flex-1 bg-gray-800 text-white rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-500"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && sendMessage()}
+          placeholder="Ask a question about your documents…"
+        />
+        <button
+          onClick={sendMessage}
+          disabled={loading}
+          className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-xl px-5 py-2 text-sm font-medium"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  )
+}
+```
+
+`frontend/app/api/chat/route.ts` — Next.js route that proxies to the FastAPI backend:
+
+```typescript
+import { NextRequest } from 'next/server'
+
+const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8000'
+
+export async function POST(req: NextRequest) {
+  const body = await req.json()
+
+  const upstream = await fetch(`${BACKEND_URL}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!upstream.ok) {
+    return new Response('Backend error', { status: upstream.status })
+  }
+
+  return new Response(upstream.body, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  })
+}
+```
+
+`frontend/app/components/FileUpload.tsx`:
+
+```tsx
+'use client'
+import { useState } from 'react'
+
+export default function FileUpload() {
+  const [status, setStatus] = useState<string>('')
+  const [uploading, setUploading] = useState(false)
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setStatus(`Uploading ${file.name}…`)
+
+    const form = new FormData()
+    form.append('file', file)
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/upload`, {
+      method: 'POST',
+      body: form,
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      setStatus(`✓ Indexed ${data.chunks} chunks from ${data.filename}`)
+    } else {
+      setStatus(`✗ Upload failed: ${res.statusText}`)
+    }
+    setUploading(false)
+    e.target.value = ''
+  }
+
+  return (
+    <div className="p-4 border border-dashed border-violet-500/40 rounded-xl">
+      <label className="cursor-pointer text-sm text-violet-300 hover:text-violet-100">
+        {uploading ? 'Processing…' : '+ Upload a PDF, DOCX, or TXT file'}
+        <input
+          type="file"
+          accept=".pdf,.docx,.txt"
+          className="hidden"
+          onChange={handleFile}
+          disabled={uploading}
+        />
+      </label>
+      {status && <p className="mt-2 text-xs text-gray-400">{status}</p>}
+    </div>
+  )
+}
+```
+
+---
+
+## Phase 9 — Dockerfiles
+
+`backend/Dockerfile` — multi-stage build to keep the image small:
+
+```dockerfile
+FROM python:3.11-slim AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+FROM python:3.11-slim
+WORKDIR /app
+COPY --from=builder /root/.local /root/.local
+COPY app/ ./app/
+ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONPATH=/app
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -f http://localhost:8000/health || exit 1
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+```
+
+`frontend/Dockerfile`:
+
+```dockerfile
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --only=production
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ARG NEXT_PUBLIC_BACKEND_URL
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://localhost:3000 || exit 1
+CMD ["node", "server.js"]
+```
+
+---
+
+## Phase 10 — Azure Container Registry
+
+```bash
+ACR_NAME="${PREFIX}acr$(openssl rand -hex 3)"
+
+az acr create \
+  --name $ACR_NAME \
+  --resource-group $RG \
+  --location $LOCATION \
+  --sku Basic \
+  --admin-enabled false
+
+echo "ACR: ${ACR_NAME}.azurecr.io"
+
+# Build and push backend image locally (dev testing)
+az acr build \
+  --registry $ACR_NAME \
+  --image "rag-backend:dev-$(git rev-parse --short HEAD)" \
+  ./backend
+
+# Build and push frontend image
+az acr build \
+  --registry $ACR_NAME \
+  --image "rag-frontend:dev-$(git rev-parse --short HEAD)" \
+  ./frontend
+```
+
+`admin-enabled false` is intentional. Service principals and Managed Identity pull images — no username/password credentials needed.
+
+---
+
+## Phase 11 — AKS Cluster
+
+```bash
+AKS_NAME="${PREFIX}-aks"
+
+az aks create \
+  --name $AKS_NAME \
+  --resource-group $RG \
+  --location $LOCATION \
+  --node-count 2 \
+  --node-vm-size Standard_D2s_v3 \
+  --enable-oidc-issuer \
+  --enable-workload-identity \
+  --enable-managed-identity \
+  --attach-acr $ACR_NAME \
+  --network-plugin azure \
+  --enable-cluster-autoscaler \
+  --min-count 2 \
+  --max-count 5 \
+  --generate-ssh-keys
+
+# Get credentials
+az aks get-credentials \
+  --resource-group $RG \
+  --name $AKS_NAME \
+  --overwrite-existing
+
+# Verify cluster is up
+kubectl get nodes
+```
+
+`--enable-oidc-issuer` and `--enable-workload-identity` are required for Workload Identity — the mechanism that lets your pods authenticate to Key Vault using Managed Identity instead of a client secret.
+
+`--attach-acr` grants the AKS managed identity the `AcrPull` role on the registry — pods can pull images without image pull secrets.
+
+---
+
+## Phase 12 — Workload Identity for Key Vault
+
+Workload Identity lets your pods authenticate to Azure services using a federated credential. The pod gets an OIDC token from AKS, exchanges it for an Azure AD token, and uses that to call Key Vault. No secrets required.
+
+```bash
+# Create managed identity for the backend
+IDENTITY_NAME="mi-rag-backend"
+az identity create \
+  --name $IDENTITY_NAME \
+  --resource-group $RG \
+  --location $LOCATION
+
+IDENTITY_CLIENT_ID=$(az identity show \
+  --name $IDENTITY_NAME \
+  --resource-group $RG \
+  --query clientId -o tsv)
+
+IDENTITY_OBJECT_ID=$(az identity show \
+  --name $IDENTITY_NAME \
+  --resource-group $RG \
+  --query principalId -o tsv)
+
+# Grant Key Vault Secrets User to the managed identity
+KV_ID=$(az keyvault show --name $KV_NAME --resource-group $RG --query id -o tsv)
+az role assignment create \
+  --role "Key Vault Secrets User" \
+  --assignee-object-id $IDENTITY_OBJECT_ID \
+  --scope $KV_ID
+
+# Create federated credential — links the Kubernetes service account to the MI
+AKS_OIDC_ISSUER=$(az aks show \
+  --name $AKS_NAME \
+  --resource-group $RG \
+  --query "oidcIssuerProfile.issuerUrl" -o tsv)
+
+az identity federated-credential create \
+  --name "rag-backend-fedcred" \
+  --identity-name $IDENTITY_NAME \
+  --resource-group $RG \
+  --issuer "$AKS_OIDC_ISSUER" \
+  --subject "system:serviceaccount:default:rag-backend-sa" \
+  --audience "api://AzureADTokenExchange"
+
+echo "Managed Identity client ID: $IDENTITY_CLIENT_ID"
+```
+
+---
+
+## Phase 13 — Kubernetes Manifests (Helm Chart)
+
+`helm/rag-chatbot/templates/serviceaccount.yaml`:
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rag-backend-sa
+  namespace: {{ .Values.namespace }}
+  annotations:
+    azure.workload.identity/client-id: {{ .Values.identity.clientId }}
+  labels:
+    azure.workload.identity/use: "true"
+```
+
+`helm/rag-chatbot/templates/deployment-backend.yaml`:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-backend
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app: rag-backend
+  template:
+    metadata:
+      labels:
+        app: rag-backend
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: rag-backend-sa
+      containers:
+        - name: backend
+          image: {{ .Values.acr }}/rag-backend:{{ .Values.imageTag }}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: KEY_VAULT_URI
+              value: {{ .Values.keyVaultUri }}
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+```
+
+`helm/rag-chatbot/values.yaml`:
+
+```yaml
+namespace: default
+acr: yourregistry.azurecr.io
+imageTag: latest
+keyVaultUri: https://your-kv.vault.azure.net/
+
+identity:
+  clientId: ""   # set via --set during deploy
+
+backend:
+  replicas: 2
+
+frontend:
+  replicas: 2
+  backendUrl: http://rag-backend-svc:8000
+
+ingress:
+  enabled: true
+  host: chat.yourdomain.com
+  tlsSecretName: chat-tls
+```
+
+Deploy to AKS:
+
+```bash
+helm upgrade --install rag-chatbot ./helm/rag-chatbot \
+  --namespace default \
+  --set acr="${ACR_NAME}.azurecr.io" \
+  --set imageTag="$(git rev-parse --short HEAD)" \
+  --set keyVaultUri="$(az keyvault show --name $KV_NAME --resource-group $RG --query properties.vaultUri -o tsv)" \
+  --set identity.clientId="$IDENTITY_CLIENT_ID" \
+  --set ingress.host="chat.yourdomain.com" \
+  --wait --timeout 5m
+```
+
+---
+
+## Phase 14 — Ingress Controller
+
+```bash
+# Install NGINX ingress controller
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path"=/healthz \
+  --wait
+
+# Get the external IP
+kubectl get svc -n ingress-nginx ingress-nginx-controller
+```
+
+Install cert-manager for automatic TLS via Let's Encrypt:
+
+```bash
+helm repo add jetstack https://charts.jetstack.io
+helm upgrade --install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --set crds.enabled=true \
+  --wait
+```
+
+`helm/rag-chatbot/templates/ingress.yaml`:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rag-chatbot-ingress
+  namespace: {{ .Values.namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host }}
+      secretName: {{ .Values.ingress.tlsSecretName }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: rag-backend-svc
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rag-frontend-svc
+                port:
+                  number: 3000
+```
+
+---
+
+## Phase 15 — Security Architecture
+
+<DiagramImage
+  src="/images/projects/security-layers.svg"
+  alt="4-layer defense-in-depth security architecture. Layer 1 Network: VNet 10.0.0.0/16, NSG deny-all ingress, AKS private cluster, no public node IPs, AGIC Ingress only, TLS 1.3 at edge, private DNS zones. Layer 2 Identity: Managed Identity, Workload Identity, no service passwords, RBAC least-privilege, Entra ID OIDC, pod identity scoping, no cluster-admin role. Layer 3 Data: Key Vault secrets, encryption at rest, TLS in transit, Blob Storage private endpoint, AI Search private endpoint, KV soft-delete 90 days, CMK optional. Layer 4 Application: rate limiting 100 RPM, JWT validation, input size limit 50KB, prompt injection guard, Content Safety API, CORS allowlist only, HSTS and CSP headers."
+  caption="Defense in depth: 4 independent security layers. An attacker must breach all 4 to reach the data — failure at any layer stops the attack chain."
+/>
+
+**Layer 2 detail — why Workload Identity instead of client secrets:**
+
+A client secret is a string stored somewhere (Key Vault, CI/CD variable, `.env` file). It can be copied, leaked in logs, or committed to git. Workload Identity eliminates the secret entirely: the Kubernetes service account token is exchanged for an Azure AD token via OIDC federation. Nothing to leak. Nothing to rotate on a schedule.
+
+```bash
+# Verify workload identity is working from inside a pod
+kubectl run -it debug --image=curlimages/curl --rm -- \
+  curl -H "Metadata: true" \
+  "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net"
+# Should return: {"access_token":"eyJ...","expires_in":"..."}
+```
+
+**Layer 4 detail — rate limiting and prompt injection:**
+
+Add rate limiting middleware to FastAPI:
+
+```python
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.post("/chat")
+@limiter.limit("100/minute")
+async def chat(req: ChatRequest, request: Request):
+    # Prompt injection guard
+    if len(req.question) > 50_000:
+        raise HTTPException(status_code=400, detail="Question too long")
+    # Basic injection detection (expand based on your threat model)
+    forbidden = ["ignore previous instructions", "system prompt", "jailbreak"]
+    lower_q = req.question.lower()
+    if any(phrase in lower_q for phrase in forbidden):
+        raise HTTPException(status_code=400, detail="Invalid input")
+    ...
+```
+
+---
+
+## Phase 16 — CI/CD with GitHub Actions
+
+<DiagramImage
+  src="/images/projects/cicd-pipeline.svg"
+  alt="10-stage CI/CD pipeline using GitHub Actions. Stages: (1) PR opened / push to main, (2) lint with ruff and run pytest, (3) Docker multi-stage build, (4) Trivy security scan failing on HIGH/CRITICAL CVEs, (5) push SHA-tagged image to ACR, (6) deploy to staging AKS with helm upgrade, (7) Playwright E2E smoke tests against staging, (8) manual approval gate, (9) deploy to prod AKS with helm upgrade and rolling update, (10) Slack and email notification."
+  caption="CI/CD: push → lint → build → Trivy scan → ACR push → staging deploy → E2E tests → manual approval → prod deploy → notify. Images are SHA-tagged for traceability."
+/>
+
+`.github/workflows/ci.yml`:
+
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  ACR_NAME: ${{ secrets.ACR_NAME }}
+  REGISTRY: ${{ secrets.ACR_NAME }}.azurecr.io
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r backend/requirements.txt pytest ruff
+      - run: ruff check backend/
+      - run: pytest backend/ -v
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --prefix frontend
+      - run: npm run build --prefix frontend
+
+  build-and-push:
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build and push backend
+        run: |
+          docker build -t $REGISTRY/rag-backend:${{ github.sha }} ./backend
+          docker push $REGISTRY/rag-backend:${{ github.sha }}
+
+      - name: Trivy scan backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/rag-backend:${{ github.sha }}
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+
+      - name: Build and push frontend
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_BACKEND_URL=${{ secrets.BACKEND_URL }} \
+            -t $REGISTRY/rag-frontend:${{ github.sha }} \
+            ./frontend
+          docker push $REGISTRY/rag-frontend:${{ github.sha }}
+```
+
+`.github/workflows/deploy.yml`:
+
+```yaml
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy-staging:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: az aks get-credentials -g ${{ secrets.RG }} -n ${{ secrets.AKS_NAME }}
+
+      - name: Deploy to staging
+        run: |
+          helm upgrade --install rag-chatbot ./helm/rag-chatbot \
+            --namespace staging \
+            --create-namespace \
+            --set imageTag=${{ github.sha }} \
+            --set acr=${{ secrets.ACR_NAME }}.azurecr.io \
+            --set keyVaultUri=${{ secrets.KV_URI }} \
+            --set identity.clientId=${{ secrets.MI_CLIENT_ID }} \
+            --set ingress.host=staging-chat.yourdomain.com \
+            --wait --timeout 5m
+
+  deploy-prod:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production   # requires manual approval in GitHub Environments
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: az aks get-credentials -g ${{ secrets.RG }} -n ${{ secrets.AKS_NAME }}
+
+      - name: Deploy to production
+        run: |
+          helm upgrade --install rag-chatbot ./helm/rag-chatbot \
+            --namespace default \
+            --set imageTag=${{ github.sha }} \
+            --set acr=${{ secrets.ACR_NAME }}.azurecr.io \
+            --set keyVaultUri=${{ secrets.KV_URI }} \
+            --set identity.clientId=${{ secrets.MI_CLIENT_ID }} \
+            --set ingress.host=chat.yourdomain.com \
+            --wait --timeout 5m
+
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: '{"text":"${{ job.status == ''success'' && ''✓'' || ''✗'' }} RAG Chatbot deploy to prod: ${{ job.status }} (${{ github.sha }})"}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+```
+
+**Required GitHub Secrets:** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME`, `AKS_NAME`, `RG`, `KV_URI`, `MI_CLIENT_ID`, `BACKEND_URL`, `SLACK_WEBHOOK`.
+
+---
+
+## Phase 17 — Container Insights Monitoring
+
+```bash
+# Enable Container Insights on the AKS cluster
+az aks enable-addons \
+  --name $AKS_NAME \
+  --resource-group $RG \
+  --addons monitoring \
+  --workspace-resource-id $(az monitor log-analytics workspace create \
+    --resource-group $RG \
+    --workspace-name "${PREFIX}-logs" \
+    --query id -o tsv)
+```
+
+Useful KQL queries for the RAG chatbot:
+
+```kusto
+// Pod restarts in the last hour
+KubePodInventory
+| where TimeGenerated > ago(1h)
+| where Namespace == "default"
+| where ContainerRestartCount > 0
+| summarize restarts = sum(ContainerRestartCount) by PodName = Name
+| order by restarts desc
+
+// Backend 5xx errors
+ContainerLog
+| where TimeGenerated > ago(1h)
+| where Name contains "rag-backend"
+| where LogEntry contains " 5"
+| project TimeGenerated, LogEntry
+| order by TimeGenerated desc
+
+// Average response latency (from FastAPI logs)
+ContainerLog
+| where Name contains "rag-backend"
+| where LogEntry matches regex @'"duration":\d+'
+| extend duration = toint(extract('"duration":(\\d+)', 1, LogEntry))
+| summarize avg(duration), percentile(duration, 95) by bin(TimeGenerated, 5m)
+```
+
+Alert on pod restarts:
+
+```bash
+az monitor metrics alert create \
+  --resource-group $RG \
+  --name "rag-backend-pod-restarts" \
+  --scopes $(az aks show -g $RG -n $AKS_NAME --query id -o tsv) \
+  --condition "avg kube_pod_container_status_restarts_total > 3" \
+  --window-size 5m \
+  --evaluation-frequency 1m \
+  --severity 2
+```
+
+---
+
+## Phase 18 — Testing Plan
+
+**Functional tests** (`backend/tests/`):
+
+```python
+# tests/test_ingest.py
+import pytest
+from app.ingest import extract_text
+
+def test_extract_pdf():
+    with open("tests/fixtures/sample.pdf", "rb") as f:
+        text = extract_text("sample.pdf", f.read())
+    assert len(text) > 100
+    assert isinstance(text, str)
+
+def test_extract_docx():
+    with open("tests/fixtures/sample.docx", "rb") as f:
+        text = extract_text("sample.docx", f.read())
+    assert len(text) > 10
+
+def test_unsupported_type():
+    with pytest.raises(ValueError, match="Unsupported file type"):
+        extract_text("file.xlsx", b"data")
+```
+
+**RAG quality tests** — verify the chatbot answers correctly from a known document:
+
+```python
+# tests/test_rag_quality.py
+import pytest
+from app.chat import retrieve_chunks
+
+@pytest.mark.integration
+def test_retrieval_finds_relevant_chunk():
+    # Assumes sample.pdf has been ingested already
+    chunks = retrieve_chunks("What is the main topic of the document?", top_k=3)
+    assert len(chunks) == 3
+    assert all("content" in c for c in chunks)
+
+@pytest.mark.integration
+def test_retrieval_returns_source():
+    chunks = retrieve_chunks("any question", top_k=1)
+    assert "source" in chunks[0]
+    assert chunks[0]["source"].endswith((".pdf", ".docx", ".txt"))
+```
+
+**Load test** with `locust`:
+
+```python
+# tests/locustfile.py
+from locust import HttpUser, task, between
+
+class ChatUser(HttpUser):
+    wait_time = between(2, 5)
+
+    @task(3)
+    def ask_question(self):
+        self.client.post("/chat", json={
+            "question": "What are the key points in the document?",
+            "history": []
+        }, timeout=30)
+
+    @task(1)
+    def health_check(self):
+        self.client.get("/health")
+```
+
+```bash
+locust -f tests/locustfile.py \
+  --host=https://chat.yourdomain.com \
+  --users=50 \
+  --spawn-rate=5 \
+  --run-time=5m \
+  --headless
+```
+
+---
+
+## Phase 19 — Cost Estimate and Cleanup
+
+**Monthly cost estimate (East US, moderate usage):**
+
+| Resource | SKU | Estimated monthly |
+|----------|-----|-------------------|
+| AKS (2× D2s_v3 nodes) | Standard | ~$140 |
+| Azure OpenAI (GPT-4o) | Pay-per-token | ~$30–80 |
+| Azure OpenAI (Embeddings) | Pay-per-token | ~$5–15 |
+| Azure AI Search | Basic | ~$75 |
+| Blob Storage | Standard LRS | ~$2 |
+| ACR | Basic | ~$5 |
+| Key Vault | Standard | ~$3 |
+| Log Analytics | Pay-per-GB | ~$10 |
+| **Total** | | **~$270–$330/month** |
+
+OpenAI costs vary widely by usage. For a prototype with 100 questions per day averaging 1,000 output tokens each: GPT-4o at $15/1M output tokens = ~$45/month. Use Azure OpenAI's built-in quota to cap spend.
+
+**Teardown when you're done:**
+
+```bash
+# Delete everything — this is irreversible
+az group delete --name $RG --yes --no-wait
+
+# Optional: purge Key Vault (otherwise soft-deleted for 90 days)
+az keyvault purge --name $KV_NAME --location $LOCATION
+
+echo "All resources deleted. GitHub Actions will fail on next push — update or delete the secrets."
+```
+
+---
+
+## Phase 20 — Portfolio README
+
+Add this to your `README.md` so recruiters and hiring managers understand what the project demonstrates:
+
+```markdown
+## AI Chatbot with RAG on Azure
+
+A production-grade Retrieval-Augmented Generation chatbot built on Azure.
+Upload any PDF, DOCX, or TXT file, then ask questions about it.
+GPT-4o answers using only the content in your documents — no hallucination.
+
+### What this project demonstrates
+
+| Skill area | Implementation |
+|------------|---------------|
+| AI/ML integration | Azure OpenAI GPT-4o (chat) + text-embedding-3-small (embeddings) |
+| Vector search | Azure AI Search with HNSW index, hybrid BM25 + vector retrieval |
+| Cloud-native deployment | AKS (private cluster, autoscaler, OIDC Workload Identity) |
+| Security | Defense in depth: Network (VNet/NSG) + Identity (no secrets) + Data (Key Vault) + App (rate limiting, prompt injection guard) |
+| CI/CD | GitHub Actions: lint → test → Docker build → Trivy scan → ACR push → staging → manual gate → prod |
+| Observability | Container Insights, KQL queries, pod restart alerts |
+| IaC | Azure CLI provisioning scripts, Helm charts for k8s, ready to migrate to Terraform |
+
+### Architecture
+
+[Full architecture diagram in the project page — AzureFixes.com/projects/ai-chatbot-with-rag-on-azure]
+
+### Quick start (local)
+
+\`\`\`bash
+# Backend
+cd backend
+pip install -r requirements.txt
+export KEY_VAULT_URI=https://your-kv.vault.azure.net/
+uvicorn app.main:app --reload
+
+# Frontend
+cd frontend
+npm install
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8000 npm run dev
+\`\`\`
+```

@@ -169,6 +169,11 @@ export const Project = defineDocumentType(() => ({
     status:      { type: 'enum', options: ['active', 'paused', 'archived'], default: 'active' },
     featured:    { type: 'boolean', default: false },
     category:    { type: 'string',  default: 'infrastructure' },
+    projectType: {
+      type: 'enum',
+      options: ['end-to-end', 'reference-implementation'],
+      required: false,
+    },
     coverImage:  { type: 'string',  required: false },
     date:        { type: 'date',    required: false },
   },

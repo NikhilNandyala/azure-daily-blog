@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#07051a"/>
+      <stop offset="100%" style="stop-color:#0d0a2e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.9"/>
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0.6"/>
+    </linearGradient>
+    <linearGradient id="purple-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.18"/>
+      <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:0.03"/>
+    </linearGradient>
+    <linearGradient id="pink-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ec4899;stop-opacity:0.12"/>
+      <stop offset="100%" style="stop-color:#f9a8d4;stop-opacity:0.02"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="52"/></filter>
+    <filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L0,5 L7,2.5 Z" fill="#a78bfa" fill-opacity="0.7"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <ellipse cx="860" cy="200" rx="340" ry="270" fill="url(#purple-glow)" filter="url(#blur)"/>
+  <ellipse cx="1100" cy="440" rx="250" ry="200" fill="url(#pink-glow)" filter="url(#blur)"/>
+  <rect x="0" y="0" width="1200" height="5" fill="url(#accent)"/>
+
+  <!-- Category badge -->
+  <rect x="80" y="140" width="130" height="28" rx="14" fill="#7c3aed" fill-opacity="0.18" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1"/>
+  <text x="145" y="159" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="600" fill="#c4b5fd" letter-spacing="0.07em">END-TO-END</text>
+
+  <!-- Title -->
+  <text x="80" y="228" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="800" fill="#f0ebff" letter-spacing="-0.02em">AI Chatbot with</text>
+  <text x="80" y="276" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="800" fill="#f0ebff" letter-spacing="-0.02em">RAG on Azure</text>
+
+  <!-- Subtitle -->
+  <text x="80" y="322" font-family="system-ui, -apple-system, sans-serif" font-size="17" fill="#8b7cb0" letter-spacing="0.01em">FastAPI · Next.js · Azure AI Search · AKS · 20 phases</text>
+
+  <!-- Divider -->
+  <line x1="80" y1="352" x2="500" y2="352" stroke="#7c3aed" stroke-opacity="0.25" stroke-width="1"/>
+
+  <!-- Tech tags -->
+  <rect x="80" y="366" width="86" height="22" rx="11" fill="#7c3aed" fill-opacity="0.15" stroke="#a78bfa" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="123" y="381" text-anchor="middle" font-family="monospace" font-size="11" fill="#c4b5fd">Azure OpenAI</text>
+
+  <rect x="176" y="366" width="76" height="22" rx="11" fill="#ec4899" fill-opacity="0.1" stroke="#f9a8d4" stroke-opacity="0.3" stroke-width="1"/>
+  <text x="214" y="381" text-anchor="middle" font-family="monospace" font-size="11" fill="#f9a8d4">AI Search</text>
+
+  <rect x="262" y="366" width="52" height="22" rx="11" fill="#7c3aed" fill-opacity="0.1" stroke="#a78bfa" stroke-opacity="0.3" stroke-width="1"/>
+  <text x="288" y="381" text-anchor="middle" font-family="monospace" font-size="11" fill="#c4b5fd">FastAPI</text>
+
+  <rect x="324" y="366" width="46" height="22" rx="11" fill="#7c3aed" fill-opacity="0.1" stroke="#a78bfa" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="347" y="381" text-anchor="middle" font-family="monospace" font-size="11" fill="#c4b5fd">AKS</text>
+
+  <rect x="380" y="366" width="60" height="22" rx="11" fill="#ec4899" fill-opacity="0.1" stroke="#f9a8d4" stroke-opacity="0.25" stroke-width="1"/>
+  <text x="410" y="381" text-anchor="middle" font-family="monospace" font-size="11" fill="#f9a8d4">Next.js</text>
+
+  <!-- Attribution -->
+  <text x="80" y="428" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#3d2d6a" letter-spacing="0.06em">AZUREFIXES.COM</text>
+
+  <!-- Right side: RAG flow mini diagram -->
+  <!-- User query bubble -->
+  <rect x="730" y="148" width="120" height="40" rx="20" fill="#1a0d3d" stroke="#7c3aed" stroke-opacity="0.6" stroke-width="1.5"/>
+  <text x="790" y="166" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#c4b5fd">User Query</text>
+  <text x="790" y="181" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">"How do I set up..."</text>
+
+  <!-- Arrow down -->
+  <line x1="790" y1="188" x2="790" y2="218" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Embed -->
+  <rect x="730" y="218" width="120" height="36" rx="6" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="790" y="236" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#f9a8d4">Embed Query</text>
+  <text x="790" y="248" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">text-embedding-3-small</text>
+
+  <!-- Arrow down -->
+  <line x1="790" y1="254" x2="790" y2="280" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- AI Search -->
+  <rect x="730" y="280" width="120" height="36" rx="6" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.6" stroke-width="1.5"/>
+  <text x="790" y="298" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#c4b5fd">AI Search</text>
+  <text x="790" y="310" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">vector + hybrid search</text>
+
+  <!-- Arrow down -->
+  <line x1="790" y1="316" x2="790" y2="342" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- GPT -->
+  <rect x="730" y="342" width="120" height="36" rx="6" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="790" y="360" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#f9a8d4">GPT-4o</text>
+  <text x="790" y="372" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">grounded completion</text>
+
+  <!-- Arrow down -->
+  <line x1="790" y1="378" x2="790" y2="404" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Response -->
+  <rect x="730" y="404" width="120" height="36" rx="20" fill="#1a0d3d" stroke="#7c3aed" stroke-opacity="0.6" stroke-width="1.5"/>
+  <text x="790" y="422" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#c4b5fd">Response</text>
+  <text x="790" y="434" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">streamed to browser</text>
+
+  <!-- Knowledge base (right side) -->
+  <rect x="910" y="280" width="110" height="36" rx="6" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="965" y="298" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="600" fill="#a78bfa" fill-opacity="0.7">Blob Storage</text>
+  <text x="965" y="310" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.5">your documents</text>
+
+  <line x1="910" y1="298" x2="850" y2="298" stroke="#a78bfa" stroke-opacity="0.25" stroke-width="1.5" stroke-dasharray="4,4"/>
+
+  <!-- 20-phase badge -->
+  <rect x="930" y="148" width="170" height="68" rx="8" fill="#7c3aed" fill-opacity="0.1" stroke="#a78bfa" stroke-opacity="0.3" stroke-width="1.5"/>
+  <text x="1015" y="174" text-anchor="middle" font-family="system-ui, sans-serif" font-size="32" font-weight="800" fill="#a78bfa">20</text>
+  <text x="1015" y="196" text-anchor="middle" font-family="monospace" font-size="10" fill="#a78bfa" fill-opacity="0.7">IMPLEMENTATION</text>
+  <text x="1015" y="209" text-anchor="middle" font-family="monospace" font-size="10" fill="#a78bfa" fill-opacity="0.7">PHASES</text>
+
+  <!-- Level badge -->
+  <rect x="930" y="396" width="170" height="44" rx="8" fill="#ec4899" fill-opacity="0.08" stroke="#f9a8d4" stroke-opacity="0.3" stroke-width="1"/>
+  <text x="1015" y="416" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#f9a8d4">Cloud Beginner</text>
+  <text x="1015" y="431" text-anchor="middle" font-family="monospace" font-size="10" fill="#ec4899" fill-opacity="0.6">every command explained</text>
+</svg>

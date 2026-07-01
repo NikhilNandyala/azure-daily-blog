@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="280" viewBox="0 0 900 280">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#07051a"/>
+      <stop offset="100%" style="stop-color:#0d0a2e"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="280" rx="10" fill="url(#bg)" stroke="#2d1b6e" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="20" y="24" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#8b7cb0" letter-spacing="0.08em">DEFENSE IN DEPTH — 4 SECURITY LAYERS</text>
+
+  <!-- Layer 1: Network -->
+  <rect x="20" y="40" width="196" height="220" rx="8" fill="#1a0d3d" stroke="#7c3aed" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="118" y="62" text-anchor="middle" font-family="monospace" font-size="10" fill="#7c3aed" fill-opacity="0.7" letter-spacing="0.05em">LAYER 1</text>
+  <text x="118" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#c4b5fd">Network</text>
+  <line x1="40" y1="90" x2="196" y2="90" stroke="#7c3aed" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="40" y="108" font-family="monospace" font-size="10" fill="#8b7cb0">▸ VNet (10.0.0.0/16)</text>
+  <text x="40" y="126" font-family="monospace" font-size="10" fill="#8b7cb0">▸ NSG: deny all ingress</text>
+  <text x="40" y="144" font-family="monospace" font-size="10" fill="#8b7cb0">▸ AKS private cluster</text>
+  <text x="40" y="162" font-family="monospace" font-size="10" fill="#8b7cb0">▸ No public node IPs</text>
+  <text x="40" y="180" font-family="monospace" font-size="10" fill="#8b7cb0">▸ AGIC Ingress only</text>
+  <text x="40" y="198" font-family="monospace" font-size="10" fill="#8b7cb0">▸ TLS 1.3 at edge</text>
+  <text x="40" y="216" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Private DNS zones</text>
+
+  <!-- Layer 2: Identity -->
+  <rect x="234" y="40" width="196" height="220" rx="8" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.4" stroke-width="1.5"/>
+  <text x="332" y="62" text-anchor="middle" font-family="monospace" font-size="10" fill="#ec4899" fill-opacity="0.7" letter-spacing="0.05em">LAYER 2</text>
+  <text x="332" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#f9a8d4">Identity</text>
+  <line x1="254" y1="90" x2="410" y2="90" stroke="#ec4899" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="254" y="108" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Managed Identity</text>
+  <text x="254" y="126" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Workload Identity</text>
+  <text x="254" y="144" font-family="monospace" font-size="10" fill="#8b7cb0">▸ No service passwords</text>
+  <text x="254" y="162" font-family="monospace" font-size="10" fill="#8b7cb0">▸ RBAC least-privilege</text>
+  <text x="254" y="180" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Entra ID auth (OIDC)</text>
+  <text x="254" y="198" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Pod identity scoping</text>
+  <text x="254" y="216" font-family="monospace" font-size="10" fill="#8b7cb0">▸ No cluster-admin role</text>
+
+  <!-- Layer 3: Data -->
+  <rect x="448" y="40" width="196" height="220" rx="8" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="546" y="62" text-anchor="middle" font-family="monospace" font-size="10" fill="#7c3aed" fill-opacity="0.7" letter-spacing="0.05em">LAYER 3</text>
+  <text x="546" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#c4b5fd">Data</text>
+  <line x1="468" y1="90" x2="624" y2="90" stroke="#a78bfa" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="468" y="108" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Key Vault secrets</text>
+  <text x="468" y="126" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Encryption at rest</text>
+  <text x="468" y="144" font-family="monospace" font-size="10" fill="#8b7cb0">▸ TLS in transit</text>
+  <text x="468" y="162" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Storage: private EP</text>
+  <text x="468" y="180" font-family="monospace" font-size="10" fill="#8b7cb0">▸ AI Search: private EP</text>
+  <text x="468" y="198" font-family="monospace" font-size="10" fill="#8b7cb0">▸ KV soft-delete 90d</text>
+  <text x="468" y="216" font-family="monospace" font-size="10" fill="#8b7cb0">▸ CMK optional</text>
+
+  <!-- Layer 4: Application -->
+  <rect x="662" y="40" width="216" height="220" rx="8" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.4" stroke-width="1.5"/>
+  <text x="770" y="62" text-anchor="middle" font-family="monospace" font-size="10" fill="#ec4899" fill-opacity="0.7" letter-spacing="0.05em">LAYER 4</text>
+  <text x="770" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="800" fill="#f9a8d4">Application</text>
+  <line x1="682" y1="90" x2="858" y2="90" stroke="#ec4899" stroke-opacity="0.2" stroke-width="1"/>
+  <text x="682" y="108" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Rate limiting (100 RPM)</text>
+  <text x="682" y="126" font-family="monospace" font-size="10" fill="#8b7cb0">▸ JWT validation</text>
+  <text x="682" y="144" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Input size limit 50KB</text>
+  <text x="682" y="162" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Prompt injection guard</text>
+  <text x="682" y="180" font-family="monospace" font-size="10" fill="#8b7cb0">▸ Content Safety API</text>
+  <text x="682" y="198" font-family="monospace" font-size="10" fill="#8b7cb0">▸ CORS allowlist only</text>
+  <text x="682" y="216" font-family="monospace" font-size="10" fill="#8b7cb0">▸ HSTS + CSP headers</text>
+
+  <!-- Bottom note -->
+  <text x="450" y="272" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">Attacker must breach all 4 layers independently — failure at any layer stops the attack chain</text>
+</svg>

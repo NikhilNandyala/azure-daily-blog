@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="220" viewBox="0 0 900 220">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#07051a"/>
+      <stop offset="100%" style="stop-color:#0d0a2e"/>
+    </linearGradient>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L0,5 L7,2.5 Z" fill="#a78bfa" fill-opacity="0.8"/>
+    </marker>
+  </defs>
+
+  <rect width="900" height="220" rx="10" fill="url(#bg)" stroke="#2d1b6e" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="20" y="24" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#8b7cb0" letter-spacing="0.08em">DOCUMENT INGESTION FLOW</text>
+
+  <!-- Step boxes -->
+  <!-- 1: Upload -->
+  <rect x="20" y="44" width="100" height="56" rx="6" fill="#1a0d3d" stroke="#7c3aed" stroke-opacity="0.6" stroke-width="1.5"/>
+  <text x="70" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">1</text>
+  <text x="70" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#c4b5fd">User</text>
+  <text x="70" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">Upload PDF/DOCX</text>
+
+  <!-- Arrow 1→2 -->
+  <line x1="120" y1="72" x2="148" y2="72" stroke="#a78bfa" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 2: Blob Storage -->
+  <rect x="148" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="202" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">2</text>
+  <text x="202" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#c4b5fd">Blob Storage</text>
+  <text x="202" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">docs container</text>
+
+  <!-- Arrow 2→3 -->
+  <line x1="256" y1="72" x2="284" y2="72" stroke="#a78bfa" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 3: FastAPI trigger -->
+  <rect x="284" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="338" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">3</text>
+  <text x="338" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#f9a8d4">FastAPI</text>
+  <text x="338" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">ingest endpoint</text>
+
+  <!-- Arrow 3→4 -->
+  <line x1="392" y1="72" x2="420" y2="72" stroke="#a78bfa" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 4: Chunker -->
+  <rect x="420" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="474" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">4</text>
+  <text x="474" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#c4b5fd">Chunker</text>
+  <text x="474" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">512 tok, 64 overlap</text>
+
+  <!-- Arrow 4→5 -->
+  <line x1="528" y1="72" x2="556" y2="72" stroke="#a78bfa" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 5: Embeddings -->
+  <rect x="556" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="610" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">5</text>
+  <text x="610" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#f9a8d4">Ada Embeddings</text>
+  <text x="610" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">text-embedding-3-small</text>
+
+  <!-- Arrow 5→6 -->
+  <line x1="664" y1="72" x2="692" y2="72" stroke="#a78bfa" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 6: AI Search Index -->
+  <rect x="692" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.6" stroke-width="1.5"/>
+  <text x="746" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">6</text>
+  <text x="746" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#c4b5fd">AI Search</text>
+  <text x="746" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">vector index</text>
+
+  <!-- Arrow 6→7 -->
+  <line x1="800" y1="72" x2="828" y2="72" stroke="#a78bfa" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 7: Done -->
+  <rect x="828" y="44" width="56" height="56" rx="28" fill="#1a0d3d" stroke="#16a34a" stroke-opacity="0.6" stroke-width="1.5"/>
+  <text x="856" y="76" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" fill="#86efac">✓</text>
+
+  <!-- Metadata row -->
+  <text x="70" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">POST /upload</text>
+  <text x="202" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">Raw file stored</text>
+  <text x="338" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">Reads from storage</text>
+  <text x="474" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">LangChain splitter</text>
+  <text x="610" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">1536-dim vectors</text>
+  <text x="746" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">hybrid: BM25 + vector</text>
+  <text x="856" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#16a34a" fill-opacity="0.7">indexed</text>
+
+  <!-- Storage note -->
+  <rect x="20" y="155" width="860" height="48" rx="6" fill="#0d0a2e" stroke="#2d1b6e" stroke-width="1"/>
+  <text x="36" y="174" font-family="monospace" font-size="10" fill="#6d5fa8">Each document chunk is stored as a JSON document in the AI Search index with fields:</text>
+  <text x="36" y="191" font-family="monospace" font-size="10" fill="#c4b5fd">id  |  content  |  embedding (float array, 1536 dims)  |  source_file  |  page_number  |  chunk_index</text>
+</svg>

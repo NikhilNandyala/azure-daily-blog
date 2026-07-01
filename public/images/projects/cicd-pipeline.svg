@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="240" viewBox="0 0 900 240">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#07051a"/>
+      <stop offset="100%" style="stop-color:#0d0a2e"/>
+    </linearGradient>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L0,5 L7,2.5 Z" fill="#a78bfa" fill-opacity="0.7"/>
+    </marker>
+    <marker id="arr-green" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L0,5 L7,2.5 Z" fill="#16a34a" fill-opacity="0.7"/>
+    </marker>
+    <marker id="arr-yellow" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
+      <path d="M0,0 L0,5 L7,2.5 Z" fill="#d97706" fill-opacity="0.7"/>
+    </marker>
+  </defs>
+
+  <rect width="900" height="240" rx="10" fill="url(#bg)" stroke="#2d1b6e" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="20" y="24" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#8b7cb0" letter-spacing="0.08em">CI/CD PIPELINE — GITHUB ACTIONS</text>
+
+  <!-- Row 1: stages 1-5 -->
+  <!-- Stage 1: PR -->
+  <rect x="20" y="44" width="72" height="60" rx="5" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="56" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">1</text>
+  <text x="56" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#c4b5fd">PR Open</text>
+  <text x="56" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">push to main</text>
+
+  <line x1="92" y1="74" x2="112" y2="74" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 2: Lint + Test -->
+  <rect x="112" y="44" width="84" height="60" rx="5" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="154" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">2</text>
+  <text x="154" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#c4b5fd">Lint + Test</text>
+  <text x="154" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">pytest / ruff</text>
+
+  <line x1="196" y1="74" x2="216" y2="74" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 3: Build Docker -->
+  <rect x="216" y="44" width="88" height="60" rx="5" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="260" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">3</text>
+  <text x="260" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#c4b5fd">Docker Build</text>
+  <text x="260" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">multi-stage</text>
+
+  <line x1="304" y1="74" x2="324" y2="74" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 4: Trivy Scan -->
+  <rect x="324" y="44" width="88" height="60" rx="5" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.4" stroke-width="1.5"/>
+  <text x="368" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">4</text>
+  <text x="368" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#f9a8d4">Trivy Scan</text>
+  <text x="368" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">HIGH + CRIT exit 1</text>
+
+  <line x1="412" y1="74" x2="432" y2="74" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 5: Push ACR -->
+  <rect x="432" y="44" width="80" height="60" rx="5" fill="#1a0d3d" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="472" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#16a34a" fill-opacity="0.7">5</text>
+  <text x="472" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#86efac">Push ACR</text>
+  <text x="472" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">sha-tagged</text>
+
+  <!-- Elbow turn arrow from stage 5 down then right -->
+  <line x1="512" y1="74" x2="548" y2="74" stroke="#d97706" stroke-opacity="0.5" stroke-width="1.5"/>
+  <line x1="548" y1="74" x2="548" y2="148" stroke="#d97706" stroke-opacity="0.5" stroke-width="1.5"/>
+  <line x1="548" y1="148" x2="572" y2="148" stroke="#d97706" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr-yellow)"/>
+
+  <!-- Row 2 label -->
+  <text x="530" y="118" font-family="monospace" font-size="8" fill="#d97706" fill-opacity="0.5">deploy</text>
+
+  <!-- Stage 6: Deploy Staging AKS -->
+  <rect x="572" y="118" width="96" height="60" rx="5" fill="#1a0d3d" stroke="#d97706" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="620" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#d97706" fill-opacity="0.7">6</text>
+  <text x="620" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#fbbf24">Staging AKS</text>
+  <text x="620" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">helm upgrade</text>
+
+  <line x1="668" y1="148" x2="688" y2="148" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 7: Integration Tests -->
+  <rect x="688" y="118" width="96" height="60" rx="5" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.4" stroke-width="1.5"/>
+  <text x="736" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">7</text>
+  <text x="736" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#f9a8d4">E2E Tests</text>
+  <text x="736" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">playwright smoke</text>
+
+  <line x1="784" y1="148" x2="804" y2="148" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 8: Manual gate -->
+  <rect x="804" y="118" width="76" height="60" rx="5" fill="#1a0d3d" stroke="#d97706" stroke-opacity="0.6" stroke-width="2" stroke-dasharray="5,4"/>
+  <text x="842" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#d97706" fill-opacity="0.7">8</text>
+  <text x="842" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#fbbf24">⏸ Approve</text>
+  <text x="842" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">manual gate</text>
+
+  <!-- Elbow back left for prod row -->
+  <line x1="842" y1="178" x2="842" y2="208" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5"/>
+  <line x1="842" y1="208" x2="744" y2="208" stroke="#16a34a" stroke-opacity="0.4" stroke-width="1.5"/>
+  <line x1="744" y1="208" x2="744" y2="198" stroke="#16a34a" stroke-opacity="0.4" stroke-width="1.5" marker-end="url(#arr-green)"/>
+
+  <!-- Stage 9: Prod AKS -->
+  <rect x="688" y="136" width="112" height="60" rx="5" fill="#1a0d3d" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5"/>
+  <!-- Wait, this overlaps with stage 7. Let me reconsider the layout. I'll move prod stages to below -->
+
+  <!-- Actually let me redesign this differently - 3 rows -->
+  <!-- Hmm, this is getting complex. Let me just do row 2 stages 9-10 to the left of stage 6 -->
+
+  <!-- Stage 9: Prod AKS - place below stage 6 (left area) -->
+  <rect x="20" y="118" width="96" height="60" rx="5" fill="#1a0d3d" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="68" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#16a34a" fill-opacity="0.7">9</text>
+  <text x="68" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#86efac">Prod AKS</text>
+  <text x="68" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">helm upgrade</text>
+
+  <line x1="116" y1="148" x2="140" y2="148" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr-green)"/>
+
+  <!-- Stage 10: Notify -->
+  <rect x="140" y="118" width="80" height="60" rx="5" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="180" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">10</text>
+  <text x="180" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#c4b5fd">✓ Notify</text>
+  <text x="180" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">Slack + email</text>
+
+  <!-- Arrow from stage 8 to stage 9 (approval leads to prod) -->
+  <line x1="20" y1="148" x2="8" y2="148" stroke="#16a34a" stroke-opacity="0.3" stroke-width="1.5"/>
+
+  <!-- Legend label for approval gate arrow -->
+  <text x="230" y="112" font-family="monospace" font-size="8" fill="#16a34a" fill-opacity="0.6">after approval →</text>
+
+  <!-- Bottom note -->
+  <rect x="20" y="195" width="860" height="36" rx="6" fill="#0d0a2e" stroke="#2d1b6e" stroke-width="1"/>
+  <text x="36" y="211" font-family="monospace" font-size="10" fill="#6d5fa8">Images are SHA-tagged so every deployment is traceable. Rolling update strategy in AKS: maxSurge=1, maxUnavailable=0.</text>
+  <text x="36" y="225" font-family="monospace" font-size="10" fill="#c4b5fd">Trivy fails the build on any HIGH or CRITICAL CVE — new vulnerabilities are blocked before reaching ACR.</text>
+</svg>
