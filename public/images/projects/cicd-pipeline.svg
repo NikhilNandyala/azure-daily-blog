@@ -1,128 +1,155 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="240" viewBox="0 0 900 240">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#07051a"/>
-      <stop offset="100%" style="stop-color:#0d0a2e"/>
-    </linearGradient>
-    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
-      <path d="M0,0 L0,5 L7,2.5 Z" fill="#a78bfa" fill-opacity="0.7"/>
+    <marker id="arr-blue" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 Z" fill="#0078D4"/>
     </marker>
-    <marker id="arr-green" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
-      <path d="M0,0 L0,5 L7,2.5 Z" fill="#16a34a" fill-opacity="0.7"/>
+    <marker id="arr-green" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 Z" fill="#107C10"/>
     </marker>
-    <marker id="arr-yellow" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
-      <path d="M0,0 L0,5 L7,2.5 Z" fill="#d97706" fill-opacity="0.7"/>
+    <marker id="arr-amber" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 Z" fill="#D97706"/>
     </marker>
   </defs>
 
-  <rect width="900" height="240" rx="10" fill="url(#bg)" stroke="#2d1b6e" stroke-width="1"/>
+  <!-- Canvas -->
+  <rect width="900" height="240" rx="6" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1"/>
 
-  <!-- Title -->
-  <text x="20" y="24" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#8b7cb0" letter-spacing="0.08em">CI/CD PIPELINE — GITHUB ACTIONS</text>
+  <!-- Navy header banner -->
+  <rect width="900" height="44" rx="6" fill="#003087"/>
+  <rect x="0" y="30" width="900" height="14" fill="#003087"/>
+  <text x="24" y="18" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" letter-spacing="0.04em">CI/CD PIPELINE — GITHUB ACTIONS</text>
+  <text x="24" y="33" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" fill="#93C5FD">10 stages  ·  push to main → lint → build → Trivy scan → ACR push → staging → E2E → approve → prod → notify</text>
 
-  <!-- Row 1: stages 1-5 -->
-  <!-- Stage 1: PR -->
-  <rect x="20" y="44" width="72" height="60" rx="5" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="56" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">1</text>
-  <text x="56" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#c4b5fd">PR Open</text>
-  <text x="56" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">push to main</text>
+  <!-- Row label left -->
+  <text x="14" y="100" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" font-weight="700" fill="#9CA3AF" writing-mode="tb" transform="rotate(-90,14,100)">CI</text>
+  <text x="14" y="180" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" font-weight="700" fill="#9CA3AF" writing-mode="tb" transform="rotate(-90,14,180)">CD</text>
 
-  <line x1="92" y1="74" x2="112" y2="74" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- ── ROW 1: CI stages 1-5 ── -->
 
-  <!-- Stage 2: Lint + Test -->
-  <rect x="112" y="44" width="84" height="60" rx="5" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="154" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">2</text>
-  <text x="154" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#c4b5fd">Lint + Test</text>
-  <text x="154" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">pytest / ruff</text>
+  <!-- Stage 1: PR / Push — BLUE -->
+  <rect x="22" y="56" width="100" height="72" rx="4" fill="#EFF6FF" stroke="#0078D4" stroke-width="1.5"/>
+  <rect x="22" y="56" width="100" height="18" rx="4" fill="#0078D4"/>
+  <rect x="22" y="65" width="100" height="9" fill="#0078D4"/>
+  <text x="72" y="68" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">1 · TRIGGER</text>
+  <text x="72" y="88" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#1E3A5F">Push to main</text>
+  <text x="72" y="101" text-anchor="middle" font-family="'Courier New', monospace" font-size="8.5" fill="#0078D4">on: push</text>
+  <text x="72" y="118" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#6B7280">or pull_request</text>
 
-  <line x1="196" y1="74" x2="216" y2="74" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="122" y1="92" x2="136" y2="92" stroke="#0078D4" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- Stage 3: Build Docker -->
-  <rect x="216" y="44" width="88" height="60" rx="5" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="260" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">3</text>
-  <text x="260" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#c4b5fd">Docker Build</text>
-  <text x="260" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">multi-stage</text>
+  <!-- Stage 2: Lint + Test — BLUE -->
+  <rect x="138" y="56" width="104" height="72" rx="4" fill="#EFF6FF" stroke="#0078D4" stroke-width="1.5"/>
+  <rect x="138" y="56" width="104" height="18" rx="4" fill="#0078D4"/>
+  <rect x="138" y="65" width="104" height="9" fill="#0078D4"/>
+  <text x="190" y="68" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">2 · TEST</text>
+  <text x="190" y="88" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#1E3A5F">Lint + Test</text>
+  <text x="190" y="101" text-anchor="middle" font-family="'Courier New', monospace" font-size="8.5" fill="#0078D4">ruff + pytest</text>
+  <text x="190" y="115" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#374151">npm build frontend</text>
+  <text x="190" y="122" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#6B7280">parallel jobs</text>
 
-  <line x1="304" y1="74" x2="324" y2="74" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="242" y1="92" x2="256" y2="92" stroke="#0078D4" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- Stage 4: Trivy Scan -->
-  <rect x="324" y="44" width="88" height="60" rx="5" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.4" stroke-width="1.5"/>
-  <text x="368" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">4</text>
-  <text x="368" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#f9a8d4">Trivy Scan</text>
-  <text x="368" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">HIGH + CRIT exit 1</text>
+  <!-- Stage 3: Docker Build — BLUE -->
+  <rect x="258" y="56" width="104" height="72" rx="4" fill="#EFF6FF" stroke="#0078D4" stroke-width="1.5"/>
+  <rect x="258" y="56" width="104" height="18" rx="4" fill="#0078D4"/>
+  <rect x="258" y="65" width="104" height="9" fill="#0078D4"/>
+  <text x="310" y="68" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">3 · BUILD</text>
+  <text x="310" y="88" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#1E3A5F">Docker Build</text>
+  <text x="310" y="101" text-anchor="middle" font-family="'Courier New', monospace" font-size="8.5" fill="#0078D4">multi-stage</text>
+  <text x="310" y="115" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#374151">backend + frontend</text>
+  <text x="310" y="122" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#6B7280">SHA-tagged image</text>
 
-  <line x1="412" y1="74" x2="432" y2="74" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="362" y1="92" x2="376" y2="92" stroke="#DC2626" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- Stage 5: Push ACR -->
-  <rect x="432" y="44" width="80" height="60" rx="5" fill="#1a0d3d" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="472" y="68" text-anchor="middle" font-family="monospace" font-size="9" fill="#16a34a" fill-opacity="0.7">5</text>
-  <text x="472" y="81" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#86efac">Push ACR</text>
-  <text x="472" y="95" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">sha-tagged</text>
+  <!-- Stage 4: Trivy Scan — RED -->
+  <rect x="378" y="56" width="104" height="72" rx="4" fill="#FEF2F2" stroke="#DC2626" stroke-width="1.5"/>
+  <rect x="378" y="56" width="104" height="18" rx="4" fill="#DC2626"/>
+  <rect x="378" y="65" width="104" height="9" fill="#DC2626"/>
+  <text x="430" y="68" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">4 · SCAN</text>
+  <text x="430" y="88" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#7F1D1D">Trivy Scan</text>
+  <text x="430" y="101" text-anchor="middle" font-family="'Courier New', monospace" font-size="8.5" fill="#DC2626">exit-code: 1</text>
+  <text x="430" y="115" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#374151">HIGH + CRIT block</text>
+  <text x="430" y="122" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#6B7280">CVE gating</text>
 
-  <!-- Elbow turn arrow from stage 5 down then right -->
-  <line x1="512" y1="74" x2="548" y2="74" stroke="#d97706" stroke-opacity="0.5" stroke-width="1.5"/>
-  <line x1="548" y1="74" x2="548" y2="148" stroke="#d97706" stroke-opacity="0.5" stroke-width="1.5"/>
-  <line x1="548" y1="148" x2="572" y2="148" stroke="#d97706" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr-yellow)"/>
+  <line x1="482" y1="92" x2="496" y2="92" stroke="#107C10" stroke-width="2" marker-end="url(#arr-green)"/>
 
-  <!-- Row 2 label -->
-  <text x="530" y="118" font-family="monospace" font-size="8" fill="#d97706" fill-opacity="0.5">deploy</text>
+  <!-- Stage 5: Push ACR — GREEN -->
+  <rect x="498" y="56" width="104" height="72" rx="4" fill="#F0FDF4" stroke="#107C10" stroke-width="1.5"/>
+  <rect x="498" y="56" width="104" height="18" rx="4" fill="#107C10"/>
+  <rect x="498" y="65" width="104" height="9" fill="#107C10"/>
+  <text x="550" y="68" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">5 · PUSH</text>
+  <text x="550" y="88" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#14532D">Push to ACR</text>
+  <text x="550" y="101" text-anchor="middle" font-family="'Courier New', monospace" font-size="8.5" fill="#107C10">:sha-xxxxxxx</text>
+  <text x="550" y="115" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#374151">OIDC auth to Azure</text>
+  <text x="550" y="122" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#6B7280">no ACR admin key</text>
 
-  <!-- Stage 6: Deploy Staging AKS -->
-  <rect x="572" y="118" width="96" height="60" rx="5" fill="#1a0d3d" stroke="#d97706" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="620" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#d97706" fill-opacity="0.7">6</text>
-  <text x="620" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#fbbf24">Staging AKS</text>
-  <text x="620" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">helm upgrade</text>
+  <!-- Elbow connector down to row 2 -->
+  <line x1="602" y1="92" x2="640" y2="92" stroke="#D97706" stroke-width="2"/>
+  <line x1="640" y1="92" x2="640" y2="142" stroke="#D97706" stroke-width="2"/>
+  <line x1="640" y1="142" x2="624" y2="142" stroke="#D97706" stroke-width="2" marker-end="url(#arr-amber)"/>
 
-  <line x1="668" y1="148" x2="688" y2="148" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- ── ROW 2: CD stages 6-10 ── -->
+  <!-- Right-to-left layout so arrow from stage 5 leads to stage 6 naturally -->
 
-  <!-- Stage 7: Integration Tests -->
-  <rect x="688" y="118" width="96" height="60" rx="5" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.4" stroke-width="1.5"/>
-  <text x="736" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">7</text>
-  <text x="736" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#f9a8d4">E2E Tests</text>
-  <text x="736" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">playwright smoke</text>
+  <!-- Stage 6: Staging Deploy — AMBER (rightmost of row 2) -->
+  <rect x="498" y="128" width="122" height="72" rx="4" fill="#FFFBEB" stroke="#D97706" stroke-width="1.5"/>
+  <rect x="498" y="128" width="122" height="18" rx="4" fill="#D97706"/>
+  <rect x="498" y="137" width="122" height="9" fill="#D97706"/>
+  <text x="559" y="140" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">6 · STAGING</text>
+  <text x="559" y="160" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#78350F">Deploy Staging</text>
+  <text x="559" y="173" text-anchor="middle" font-family="'Courier New', monospace" font-size="8.5" fill="#D97706">helm upgrade</text>
+  <text x="559" y="187" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#374151">AKS staging ns</text>
+  <text x="559" y="194" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#6B7280">rolling update</text>
 
-  <line x1="784" y1="148" x2="804" y2="148" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="498" y1="164" x2="482" y2="164" stroke="#0078D4" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- Stage 8: Manual gate -->
-  <rect x="804" y="118" width="76" height="60" rx="5" fill="#1a0d3d" stroke="#d97706" stroke-opacity="0.6" stroke-width="2" stroke-dasharray="5,4"/>
-  <text x="842" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#d97706" fill-opacity="0.7">8</text>
-  <text x="842" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#fbbf24">⏸ Approve</text>
-  <text x="842" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">manual gate</text>
+  <!-- Stage 7: E2E Tests — BLUE -->
+  <rect x="374" y="128" width="122" height="72" rx="4" fill="#EFF6FF" stroke="#0078D4" stroke-width="1.5"/>
+  <rect x="374" y="128" width="122" height="18" rx="4" fill="#0078D4"/>
+  <rect x="374" y="137" width="122" height="9" fill="#0078D4"/>
+  <text x="435" y="140" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">7 · VALIDATE</text>
+  <text x="435" y="160" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#1E3A5F">E2E Tests</text>
+  <text x="435" y="173" text-anchor="middle" font-family="'Courier New', monospace" font-size="8.5" fill="#0078D4">playwright</text>
+  <text x="435" y="187" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#374151">smoke suite on staging</text>
+  <text x="435" y="194" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#6B7280">fail → pipeline stops</text>
 
-  <!-- Elbow back left for prod row -->
-  <line x1="842" y1="178" x2="842" y2="208" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5"/>
-  <line x1="842" y1="208" x2="744" y2="208" stroke="#16a34a" stroke-opacity="0.4" stroke-width="1.5"/>
-  <line x1="744" y1="208" x2="744" y2="198" stroke="#16a34a" stroke-opacity="0.4" stroke-width="1.5" marker-end="url(#arr-green)"/>
+  <line x1="374" y1="164" x2="358" y2="164" stroke="#D97706" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arr-amber)"/>
 
-  <!-- Stage 9: Prod AKS -->
-  <rect x="688" y="136" width="112" height="60" rx="5" fill="#1a0d3d" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5"/>
-  <!-- Wait, this overlaps with stage 7. Let me reconsider the layout. I'll move prod stages to below -->
+  <!-- Stage 8: Manual Approval — AMBER dashed -->
+  <rect x="250" y="128" width="106" height="72" rx="4" fill="#FFFBEB" stroke="#D97706" stroke-width="2" stroke-dasharray="6,4"/>
+  <rect x="250" y="128" width="106" height="18" rx="4" fill="#D97706"/>
+  <rect x="250" y="137" width="106" height="9" fill="#D97706"/>
+  <text x="303" y="140" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">8 · GATE</text>
+  <text x="303" y="157" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="18" fill="#D97706">⏸</text>
+  <text x="303" y="176" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#78350F">Approve</text>
+  <text x="303" y="189" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#374151">manual review</text>
+  <text x="303" y="196" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#6B7280">GitHub Environment</text>
 
-  <!-- Actually let me redesign this differently - 3 rows -->
-  <!-- Hmm, this is getting complex. Let me just do row 2 stages 9-10 to the left of stage 6 -->
+  <line x1="250" y1="164" x2="234" y2="164" stroke="#107C10" stroke-width="2" marker-end="url(#arr-green)"/>
 
-  <!-- Stage 9: Prod AKS - place below stage 6 (left area) -->
-  <rect x="20" y="118" width="96" height="60" rx="5" fill="#1a0d3d" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="68" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#16a34a" fill-opacity="0.7">9</text>
-  <text x="68" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#86efac">Prod AKS</text>
-  <text x="68" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">helm upgrade</text>
+  <!-- Stage 9: Prod Deploy — GREEN -->
+  <rect x="130" y="128" width="102" height="72" rx="4" fill="#F0FDF4" stroke="#107C10" stroke-width="1.5"/>
+  <rect x="130" y="128" width="102" height="18" rx="4" fill="#107C10"/>
+  <rect x="130" y="137" width="102" height="9" fill="#107C10"/>
+  <text x="181" y="140" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">9 · PROD</text>
+  <text x="181" y="160" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#14532D">Deploy Prod</text>
+  <text x="181" y="173" text-anchor="middle" font-family="'Courier New', monospace" font-size="8.5" fill="#107C10">helm upgrade</text>
+  <text x="181" y="187" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#374151">AKS default ns</text>
+  <text x="181" y="194" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#6B7280">maxSurge=1</text>
 
-  <line x1="116" y1="148" x2="140" y2="148" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5" marker-end="url(#arr-green)"/>
+  <line x1="130" y1="164" x2="114" y2="164" stroke="#0078D4" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- Stage 10: Notify -->
-  <rect x="140" y="118" width="80" height="60" rx="5" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="180" y="142" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">10</text>
-  <text x="180" y="155" text-anchor="middle" font-family="system-ui, sans-serif" font-size="10" font-weight="700" fill="#c4b5fd">✓ Notify</text>
-  <text x="180" y="169" text-anchor="middle" font-family="monospace" font-size="8" fill="#8b7cb0">Slack + email</text>
+  <!-- Stage 10: Notify — PURPLE -->
+  <rect x="22" y="128" width="90" height="72" rx="4" fill="#F5F3FF" stroke="#7719AA" stroke-width="1.5"/>
+  <rect x="22" y="128" width="90" height="18" rx="4" fill="#7719AA"/>
+  <rect x="22" y="137" width="90" height="9" fill="#7719AA"/>
+  <text x="67" y="140" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">10 · NOTIFY</text>
+  <text x="67" y="158" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="18" fill="#7719AA">✓</text>
+  <text x="67" y="176" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="700" fill="#3B0764">Notify</text>
+  <text x="67" y="189" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#374151">Slack + email</text>
+  <text x="67" y="196" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8" fill="#6B7280">on success or fail</text>
 
-  <!-- Arrow from stage 8 to stage 9 (approval leads to prod) -->
-  <line x1="20" y1="148" x2="8" y2="148" stroke="#16a34a" stroke-opacity="0.3" stroke-width="1.5"/>
-
-  <!-- Legend label for approval gate arrow -->
-  <text x="230" y="112" font-family="monospace" font-size="8" fill="#16a34a" fill-opacity="0.6">after approval →</text>
-
-  <!-- Bottom note -->
-  <rect x="20" y="195" width="860" height="36" rx="6" fill="#0d0a2e" stroke="#2d1b6e" stroke-width="1"/>
-  <text x="36" y="211" font-family="monospace" font-size="10" fill="#6d5fa8">Images are SHA-tagged so every deployment is traceable. Rolling update strategy in AKS: maxSurge=1, maxUnavailable=0.</text>
-  <text x="36" y="225" font-family="monospace" font-size="10" fill="#c4b5fd">Trivy fails the build on any HIGH or CRITICAL CVE — new vulnerabilities are blocked before reaching ACR.</text>
+  <!-- Footer -->
+  <rect x="22" y="212" width="856" height="20" rx="4" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+  <text x="36" y="225" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#374151"><tspan font-weight="700" fill="#1E40AF">ROLLBACK  </tspan>Images are SHA-tagged — revert by re-deploying a previous SHA.  <tspan font-weight="700" fill="#DC2626">Stage 4 (Trivy)</tspan> blocks the pipeline on any HIGH or CRITICAL CVE before it reaches ACR.</text>
 </svg>

@@ -1,94 +1,113 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="220" viewBox="0 0 900 220">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#07051a"/>
-      <stop offset="100%" style="stop-color:#0d0a2e"/>
-    </linearGradient>
-    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
-      <path d="M0,0 L0,5 L7,2.5 Z" fill="#ec4899" fill-opacity="0.8"/>
+    <marker id="arr-blue" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 Z" fill="#0078D4"/>
     </marker>
-    <marker id="arr-green" markerWidth="8" markerHeight="8" refX="7" refY="2.5" orient="auto">
-      <path d="M0,0 L0,5 L7,2.5 Z" fill="#16a34a" fill-opacity="0.8"/>
+    <marker id="arr-green" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 Z" fill="#107C10"/>
     </marker>
   </defs>
 
-  <rect width="900" height="220" rx="10" fill="url(#bg)" stroke="#2d1b6e" stroke-width="1"/>
+  <!-- Canvas -->
+  <rect width="900" height="220" rx="6" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1"/>
 
-  <!-- Title -->
-  <text x="20" y="24" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#8b7cb0" letter-spacing="0.08em">RAG CHAT RETRIEVAL FLOW</text>
+  <!-- Navy header banner -->
+  <rect width="900" height="44" rx="6" fill="#003087"/>
+  <rect x="0" y="30" width="900" height="14" fill="#003087"/>
+  <text x="24" y="18" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF" letter-spacing="0.04em">RAG CHAT RETRIEVAL FLOW</text>
+  <text x="24" y="33" font-family="'Segoe UI', system-ui, sans-serif" font-size="10" fill="#93C5FD">Question → Embed → Search → Build Prompt → GPT-4o → Stream  ·  Hybrid BM25 + Vector  ·  temperature=0</text>
 
-  <!-- Step boxes -->
-  <!-- 1: User message -->
-  <rect x="20" y="44" width="100" height="56" rx="6" fill="#1a0d3d" stroke="#7c3aed" stroke-opacity="0.6" stroke-width="1.5"/>
-  <text x="70" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">1</text>
-  <text x="70" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#c4b5fd">User</text>
-  <text x="70" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">types question</text>
+  <!-- Step 1: User — BLUE -->
+  <rect x="22" y="58" width="110" height="80" rx="5" fill="#EFF6FF" stroke="#0078D4" stroke-width="1.5"/>
+  <rect x="22" y="58" width="110" height="22" rx="5" fill="#0078D4"/>
+  <rect x="22" y="68" width="110" height="12" fill="#0078D4"/>
+  <text x="77" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" font-weight="700" fill="#FFFFFF" letter-spacing="0.06em">STEP 1</text>
+  <text x="77" y="92" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#1E3A5F">User Question</text>
+  <text x="77" y="107" text-anchor="middle" font-family="'Courier New', monospace" font-size="9" fill="#0078D4">React UI</text>
+  <text x="77" y="121" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#374151">types message</text>
+  <text x="77" y="133" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#6B7280">free-text input</text>
 
-  <!-- Arrow -->
-  <line x1="120" y1="72" x2="148" y2="72" stroke="#ec4899" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- Arrow 1→2 -->
+  <line x1="132" y1="98" x2="148" y2="98" stroke="#0078D4" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- 2: Next.js -->
-  <rect x="148" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="202" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">2</text>
-  <text x="202" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#f9a8d4">Next.js</text>
-  <text x="202" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">POST /api/chat</text>
+  <!-- Step 2: Next.js — PURPLE -->
+  <rect x="150" y="58" width="110" height="80" rx="5" fill="#F5F3FF" stroke="#7719AA" stroke-width="1.5"/>
+  <rect x="150" y="58" width="110" height="22" rx="5" fill="#7719AA"/>
+  <rect x="150" y="68" width="110" height="12" fill="#7719AA"/>
+  <text x="205" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" font-weight="700" fill="#FFFFFF" letter-spacing="0.06em">STEP 2</text>
+  <text x="205" y="92" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#3B0764">Next.js</text>
+  <text x="205" y="107" text-anchor="middle" font-family="'Courier New', monospace" font-size="9" fill="#7719AA">POST /api/chat</text>
+  <text x="205" y="121" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#374151">Server Action</text>
+  <text x="205" y="133" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#6B7280">proxies to backend</text>
 
-  <!-- Arrow -->
-  <line x1="256" y1="72" x2="284" y2="72" stroke="#ec4899" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- Arrow 2→3 -->
+  <line x1="260" y1="98" x2="276" y2="98" stroke="#0078D4" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- 3: FastAPI -->
-  <rect x="284" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="338" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">3</text>
-  <text x="338" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#c4b5fd">FastAPI</text>
-  <text x="338" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">embed + search</text>
+  <!-- Step 3: FastAPI — BLUE -->
+  <rect x="278" y="58" width="110" height="80" rx="5" fill="#EFF6FF" stroke="#0078D4" stroke-width="1.5"/>
+  <rect x="278" y="58" width="110" height="22" rx="5" fill="#0078D4"/>
+  <rect x="278" y="68" width="110" height="12" fill="#0078D4"/>
+  <text x="333" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" font-weight="700" fill="#FFFFFF" letter-spacing="0.06em">STEP 3</text>
+  <text x="333" y="92" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#1E3A5F">FastAPI</text>
+  <text x="333" y="107" text-anchor="middle" font-family="'Courier New', monospace" font-size="9" fill="#0078D4">embed question</text>
+  <text x="333" y="121" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#374151">text-embedding-3-small</text>
+  <text x="333" y="133" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#6B7280">1536-dim vector</text>
 
-  <!-- Arrow -->
-  <line x1="392" y1="72" x2="420" y2="72" stroke="#ec4899" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- Arrow 3→4 -->
+  <line x1="388" y1="98" x2="404" y2="98" stroke="#0078D4" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- 4: AI Search -->
-  <rect x="420" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#a78bfa" stroke-opacity="0.6" stroke-width="1.5"/>
-  <text x="474" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#7c3aed" fill-opacity="0.7">4</text>
-  <text x="474" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#c4b5fd">AI Search</text>
-  <text x="474" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">top-5 chunks</text>
+  <!-- Step 4: AI Search — AMBER -->
+  <rect x="406" y="58" width="110" height="80" rx="5" fill="#FFFBEB" stroke="#D97706" stroke-width="1.5"/>
+  <rect x="406" y="58" width="110" height="22" rx="5" fill="#D97706"/>
+  <rect x="406" y="68" width="110" height="12" fill="#D97706"/>
+  <text x="461" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" font-weight="700" fill="#FFFFFF" letter-spacing="0.06em">STEP 4</text>
+  <text x="461" y="92" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#78350F">AI Search</text>
+  <text x="461" y="107" text-anchor="middle" font-family="'Courier New', monospace" font-size="9" fill="#D97706">top-5 chunks</text>
+  <text x="461" y="121" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#374151">hybrid: vector + BM25</text>
+  <text x="461" y="133" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#6B7280">semantic ranking</text>
 
-  <!-- Arrow -->
-  <line x1="528" y1="72" x2="556" y2="72" stroke="#ec4899" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- Arrow 4→5 -->
+  <line x1="516" y1="98" x2="532" y2="98" stroke="#0078D4" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- 5: Build prompt -->
-  <rect x="556" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="610" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">5</text>
-  <text x="610" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#f9a8d4">Build Prompt</text>
-  <text x="610" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">context + question</text>
+  <!-- Step 5: Build Prompt — BLUE -->
+  <rect x="534" y="58" width="110" height="80" rx="5" fill="#EFF6FF" stroke="#0078D4" stroke-width="1.5"/>
+  <rect x="534" y="58" width="110" height="22" rx="5" fill="#0078D4"/>
+  <rect x="534" y="68" width="110" height="12" fill="#0078D4"/>
+  <text x="589" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" font-weight="700" fill="#FFFFFF" letter-spacing="0.06em">STEP 5</text>
+  <text x="589" y="92" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#1E3A5F">Build Prompt</text>
+  <text x="589" y="107" text-anchor="middle" font-family="'Courier New', monospace" font-size="9" fill="#0078D4">system + context</text>
+  <text x="589" y="121" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#374151">grounding instructions</text>
+  <text x="589" y="133" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#6B7280">context window</text>
 
-  <!-- Arrow -->
-  <line x1="664" y1="72" x2="692" y2="72" stroke="#ec4899" stroke-opacity="0.6" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- Arrow 5→6 -->
+  <line x1="644" y1="98" x2="660" y2="98" stroke="#0078D4" stroke-width="2" marker-end="url(#arr-blue)"/>
 
-  <!-- 6: GPT-4o -->
-  <rect x="692" y="44" width="108" height="56" rx="6" fill="#1a0d3d" stroke="#ec4899" stroke-opacity="0.6" stroke-width="1.5"/>
-  <text x="746" y="66" text-anchor="middle" font-family="monospace" font-size="9" fill="#ec4899" fill-opacity="0.7">6</text>
-  <text x="746" y="80" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11" font-weight="700" fill="#f9a8d4">GPT-4o</text>
-  <text x="746" y="93" text-anchor="middle" font-family="monospace" font-size="9" fill="#8b7cb0">stream completion</text>
+  <!-- Step 6: GPT-4o — PURPLE -->
+  <rect x="662" y="58" width="110" height="80" rx="5" fill="#F5F3FF" stroke="#7719AA" stroke-width="1.5"/>
+  <rect x="662" y="58" width="110" height="22" rx="5" fill="#7719AA"/>
+  <rect x="662" y="68" width="110" height="12" fill="#7719AA"/>
+  <text x="717" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" font-weight="700" fill="#FFFFFF" letter-spacing="0.06em">STEP 6</text>
+  <text x="717" y="92" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#3B0764">GPT-4o</text>
+  <text x="717" y="107" text-anchor="middle" font-family="'Courier New', monospace" font-size="9" fill="#7719AA">temperature=0</text>
+  <text x="717" y="121" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#374151">stream completion</text>
+  <text x="717" y="133" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#6B7280">context-grounded</text>
 
-  <!-- Arrow (green — response back) -->
-  <line x1="800" y1="72" x2="828" y2="72" stroke="#16a34a" stroke-opacity="0.7" stroke-width="1.5" marker-end="url(#arr-green)"/>
+  <!-- Arrow 6→7 (green — response) -->
+  <line x1="772" y1="98" x2="788" y2="98" stroke="#107C10" stroke-width="2" marker-end="url(#arr-green)"/>
 
-  <!-- 7: Browser -->
-  <rect x="828" y="44" width="56" height="56" rx="6" fill="#1a0d3d" stroke="#16a34a" stroke-opacity="0.5" stroke-width="1.5"/>
-  <text x="856" y="67" text-anchor="middle" font-family="system-ui, sans-serif" font-size="16" fill="#86efac">⚡</text>
-  <text x="856" y="83" text-anchor="middle" font-family="monospace" font-size="9" fill="#86efac">stream</text>
-  <text x="856" y="94" text-anchor="middle" font-family="monospace" font-size="9" fill="#16a34a" fill-opacity="0.6">to UI</text>
+  <!-- Step 7: Browser — GREEN -->
+  <rect x="790" y="58" width="88" height="80" rx="5" fill="#F0FDF4" stroke="#107C10" stroke-width="1.5"/>
+  <rect x="790" y="58" width="88" height="22" rx="5" fill="#107C10"/>
+  <rect x="790" y="68" width="88" height="12" fill="#107C10"/>
+  <text x="834" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" font-weight="700" fill="#FFFFFF" letter-spacing="0.06em">STEP 7</text>
+  <text x="834" y="92" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#14532D">Browser</text>
+  <text x="834" y="107" text-anchor="middle" font-family="'Courier New', monospace" font-size="9" fill="#107C10">SSE stream</text>
+  <text x="834" y="121" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" fill="#374151">token-by-token</text>
+  <text x="834" y="133" text-anchor="middle" font-family="'Segoe UI', system-ui, sans-serif" font-size="8.5" fill="#6B7280">real-time UI update</text>
 
-  <!-- Metadata row -->
-  <text x="70" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">React UI</text>
-  <text x="202" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">Server Action</text>
-  <text x="338" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">embed question</text>
-  <text x="474" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">semantic + keyword</text>
-  <text x="610" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">system + context</text>
-  <text x="746" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#4b3f7a">temperature: 0</text>
-  <text x="856" y="130" text-anchor="middle" font-family="monospace" font-size="9" fill="#16a34a" fill-opacity="0.7">SSE chunks</text>
-
-  <!-- Key note -->
-  <rect x="20" y="155" width="860" height="48" rx="6" fill="#0d0a2e" stroke="#2d1b6e" stroke-width="1"/>
-  <text x="36" y="174" font-family="monospace" font-size="10" fill="#6d5fa8">RAG grounding prevents hallucination: GPT-4o is instructed to answer ONLY from the provided context chunks.</text>
-  <text x="36" y="191" font-family="monospace" font-size="10" fill="#c4b5fd">System prompt: "Answer only using the context below. If the answer is not in the context, say 'I don't know.'"</text>
+  <!-- Footer — Key design points -->
+  <rect x="22" y="152" width="856" height="54" rx="4" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1"/>
+  <text x="36" y="168" font-family="'Segoe UI', system-ui, sans-serif" font-size="9.5" font-weight="700" fill="#1E40AF" letter-spacing="0.05em">KEY DESIGN POINTS</text>
+  <text x="36" y="184" font-family="'Courier New', monospace" font-size="9.5" fill="#1E3A5F">System prompt: "Answer ONLY using the context below. If the answer is not in the context, say 'I don't know.'"</text>
+  <text x="36" y="198" font-family="'Segoe UI', system-ui, sans-serif" font-size="9.5" fill="#374151">temperature=0 ensures deterministic, reproducible answers.  Hybrid search combines BM25 keyword + vector similarity for higher recall.</text>
 </svg>
