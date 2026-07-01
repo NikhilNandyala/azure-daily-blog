@@ -1,7 +1,7 @@
 ---
-title: 'Fixing Azure VPN Gateway CPU Spikes: A Route Explosion RCA'
+title: 'Fixing Azure VPN Gateway High CPU: BGP Route Explosion Diagnosis and Fix'
 date: '2026-06-29'
-summary: 'A production incident walkthrough: VPN Gateway CPU pegged at 95% across both active-active instances, causing BGP flaps and tunnel instability. Root cause was 2,400 BGP prefixes with no summarization. Fix: route summarization + SKU upgrade brought CPU to 38%.'
+summary: 'If your VPN Gateway CPU is above 85% while traffic volume looks normal, BGP route bloat is almost certainly the cause. This guide covers the exact commands to diagnose it, route summarization on the CE router, an Azure-side prefix filter for defense in depth, and when to upgrade the gateway SKU.'
 tags: ['Azure', 'VPN Gateway', 'BGP', 'Networking', 'Troubleshooting', 'ExpressRoute']
 postType: troubleshooting
 featured: true
@@ -11,26 +11,26 @@ draft: false
 coverImage: '/images/blog/azure-vng-cpu-spike-cover.svg'
 ---
 
-At 02:47 UTC on a Tuesday, our on-call alert fired: VPN Gateway CPU on both active-active instances above 90% for 15 minutes. BGP sessions were flapping. Two site-to-site tunnels had already dropped. Workloads that depended on cross-premises connectivity were timing out.
+If your Azure VPN Gateway CPU is pegged above 85% and your traffic volume is well within the SKU's throughput limit, the gateway is spending cycles on something other than forwarding packets. The most common cause — by a wide margin — is BGP route bloat: too many prefixes being advertised from on-premises, triggering a CPU-intensive reconvergence feedback loop.
 
-This is the RCA, the fix, and the architectural change we made to prevent it recurring.
+This guide walks through diagnosing the route count, fixing summarization on the CE router, adding a route filter on the Azure side, and upgrading the SKU if needed.
 
 ---
 
-## The Symptom
+## Symptoms
 
-**Alert:** `AzureVPNGateway CPU Utilization > 85% for 15 minutes`
+**Alert pattern:** `AzureVPNGateway CPU Utilization > 85% for 15 minutes`
 
-**What we saw in the portal:**
+**What you will see in the portal:**
 
-- Both gateway instances: 92–97% CPU
+- Both gateway instances: 90%+ CPU
 - BGP peer state: `Connecting` (flapping every 3–5 minutes)
-- Active tunnels: dropped from 6 to 4
-- Traffic: ~340 Mbps total across tunnels (well under the VpnGw1 throughput limit of 650 Mbps)
+- Active tunnels: fewer than provisioned
+- Traffic: well under the SKU's throughput limit
 
-The traffic volume ruled out a throughput problem immediately. CPU at 95% with only 340 Mbps of traffic meant the gateway was spending cycles on something other than forwarding packets.
+The traffic volume mismatch is the key signal. CPU at 95% with only 340 Mbps of traffic on a VpnGw1 (650 Mbps limit) rules out a throughput problem. The gateway is spending cycles on BGP processing, not packet forwarding.
 
-**BGP session drops in the Activity Log:**
+**BGP session drops in the Activity Log look like this:**
 
 ```
 2026-06-17T02:41:08Z  BGPPeerSessionDown  peer=10.10.1.1  gateway=vpn-hub-eastus
@@ -38,7 +38,7 @@ The traffic volume ruled out a throughput problem immediately. CPU at 95% with o
 2026-06-17T02:47:39Z  BGPPeerSessionDown  peer=10.10.1.1  gateway=vpn-hub-eastus
 ```
 
-The BGP session to the primary on-premises CE router was resetting on a cycle. Each reset triggers a full route table exchange on reconnect, which is exactly when CPU spikes — creating a feedback loop where high CPU causes a BGP drop, which triggers a reconvergence, which causes high CPU.
+The BGP session to the CE router resets on a cycle. Each reset triggers a full route table exchange on reconnect — which is exactly when CPU spikes — creating a feedback loop where high CPU causes a BGP drop, which triggers reconvergence, which causes high CPU.
 
 ---
 
@@ -60,9 +60,7 @@ az network vnet-gateway list-learned-routes \
   --output json | jq 'length'
 ```
 
-**Output: `2,412`**
-
-That was the number. 2,412 BGP routes being processed, stored, and programmed into every NIC across every VM in every peered VNet. VpnGw1 is not designed to handle that volume of BGP state.
+If the output is in the hundreds or thousands, that is the root cause. VpnGw1 is documented as supporting up to 100 BGP routes per peer before behavior becomes unpredictable.
 
 ### Step 2 — Examine the Routes
 
@@ -92,11 +90,11 @@ az network vnet-gateway list-learned-routes \
 ]
 ```
 
-Every /30 point-to-point link and /32 loopback in the on-premises network was being individually advertised into BGP. The network team had migrated from a static routing setup six months earlier and simply exported the full on-prem IP plan into BGP without any aggregation.
+If you see individual /30 point-to-point links and /32 loopbacks advertised separately, the on-premises CE router is exporting the full IP plan into BGP without aggregation. This commonly happens after migrations from static routing to BGP where summarization was never configured.
 
 ### Step 3 — Confirm the Gateway SKU Limit
 
-The Azure documentation for VpnGw1 states a maximum of **100 BGP routes** recommended per peer. We were at 2,400. The undocumented behavior at this scale: the gateway processes BGP updates but routing table programming to Azure VMs becomes slow, BGP keepalive processing gets deprioritized, and sessions eventually time out.
+The Azure documentation for VpnGw1 states a maximum of **100 BGP routes** recommended per peer. The undocumented behavior above that threshold: the gateway processes BGP updates but routing table programming to Azure VMs becomes slow, BGP keepalive processing gets deprioritized, and sessions eventually time out.
 
 ### Step 4 — Check for Other Contributors
 
@@ -113,7 +111,7 @@ az network vpn-connection list \
   --output table
 ```
 
-Six active site-to-site connections, all with default IKE settings (rekey interval: 8 hours). No IKE rekey storm — the six connections had staggered rekey times from different establishment dates. The BGP route count was the sole root cause.
+If connections have staggered establishment dates and default IKE rekey intervals (8 hours), a rekey storm is unlikely. If you see many connections that all came up at the same time, IKE rekeys may be a contributing factor.
 
 ---
 
@@ -131,7 +129,7 @@ Six active site-to-site connections, all with default IKE settings (rekey interv
 
 ### Fix 1 — Route Summarization on the On-Premises CE Router
 
-The on-prem team had two Cisco IOS-XE CE routers (one per site). We configured route aggregation on both to suppress the specific /30 and /32 routes and only advertise supernet summaries.
+Configure route aggregation on all CE routers to suppress the specific /30 and /32 routes and advertise only supernet summaries.
 
 **Cisco IOS-XE — aggregate address configuration:**
 
@@ -146,7 +144,7 @@ router bgp 65000
   no auto-summary
 ```
 
-`summary-only` suppresses the more-specific routes — only the aggregate is advertised to eBGP peers. This reduced the advertised prefix count from 2,412 to 12.
+`summary-only` suppresses the more-specific routes — only the aggregate is advertised to eBGP peers. This reduces the advertised prefix count from thousands to a handful.
 
 **Verify on the Azure side after applying:**
 
@@ -160,7 +158,7 @@ az network vnet-gateway list-learned-routes \
 
 ### Fix 2 — Add a BGP Route Filter on Azure (Defense in Depth)
 
-Even with summarization on the on-prem side, we added an inbound BGP route filter as a safety net to prevent a future on-prem misconfiguration from flooding the gateway again. This is done via a local network gateway route filter.
+Even with summarization on the on-prem side, add an inbound BGP route filter as a safety net so that a future CE misconfiguration cannot flood the gateway again.
 
 For a Local Network Gateway (policy-based):
 
@@ -190,7 +188,7 @@ This rejects any prefix longer than /22 from being accepted from Azure peers —
 
 ### Fix 3 — Upgrade the Gateway SKU
 
-With summarization in place, VpnGw1 would now be within specification. However, with six active tunnels and traffic trending upward, we took the opportunity to upgrade to VpnGw2 during the next maintenance window.
+If you have more than four site-to-site tunnels, traffic trending above 500 Mbps, or more than 100 BGP prefixes even after summarization, upgrade from VpnGw1 to VpnGw2.
 
 ```bash
 # Resize the gateway (causes ~30 seconds of downtime per instance in active-standby;
@@ -206,11 +204,11 @@ VpnGw2 provides:
 - Higher BGP route table capacity
 - More IKE SA processing headroom
 
-The resize took 18 minutes. BGP sessions reconverged within 90 seconds of the resize completing.
+The resize takes approximately 18 minutes. BGP sessions reconverge within 90 seconds of the resize completing.
 
 ---
 
-## Results
+## Expected Results After the Fix
 
 | Metric | Before | After |
 |--------|--------|-------|
@@ -222,7 +220,7 @@ The resize took 18 minutes. BGP sessions reconverged within 90 seconds of the re
 
 ---
 
-## Alerting We Added After the Incident
+## Alerting to Add
 
 **Alert 1 — BGP route count threshold:**
 
@@ -288,18 +286,18 @@ The VPN Gateway appliance processes BGP in-line on the same compute resources th
 
 When the BGP process can't send keepalives within the hold-timer (default: 90 seconds), the remote peer declares the session dead and resets it. The reset triggers a full BGP table exchange on reconnect. That exchange is even more CPU-intensive than steady-state route maintenance — it's a batch upload of the entire table — which is why the feedback loop is so destructive.
 
-The fix isn't really about making BGP "faster" on the gateway. It's about keeping the route table small enough that BGP processing is trivial compared to the gateway's available CPU budget.
+The fix isn't about making BGP "faster" on the gateway. It's about keeping the route table small enough that BGP processing is trivial compared to the gateway's available CPU budget.
 
 ---
 
-## Lessons Learned
+## Key Takeaways
 
-1. **Route summarization is not optional in BGP-based VPN topologies.** Any on-premises migration from static routing to BGP must include an aggregation design review before cutover.
+1. **Route summarization is not optional in BGP-based VPN topologies.** Any migration from static routing to BGP must include an aggregation design review before cutover.
 
-2. **The BGP route limit for VpnGw1 is effectively ~100 prefixes per peer, not the documented maximum.** At scale, the gateway starts showing stress well before hitting a hard ceiling.
+2. **The effective BGP route limit for VpnGw1 is ~100 prefixes per peer, not the documented maximum.** At scale, the gateway shows stress well before hitting a hard ceiling.
 
 3. **Active-active gateways don't protect against CPU-based failures.** Both instances run the same BGP process against the same route table. If the table is too large, both instances spike simultaneously.
 
-4. **Add a BGP route count alert *before* connecting new sites.** The alert should fire at 100-200 prefixes — well before the 2,000+ threshold that causes instability.
+4. **Add a BGP route count alert before connecting new sites.** The alert should fire at 100-200 prefixes — well before the 2,000+ threshold that causes instability.
 
-5. **A resize to VpnGw2 is low-risk and fast.** 18 minutes of maintenance window, ~30 seconds of actual downtime in active-active mode, and a meaningful increase in headroom for the cost of roughly $100/month more than VpnGw1.
+5. **A resize to VpnGw2 is low-risk and fast.** Approximately 18 minutes of maintenance, ~30 seconds of actual downtime in active-active mode, and a meaningful increase in headroom for roughly $100/month more than VpnGw1.

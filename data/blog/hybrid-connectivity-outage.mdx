@@ -1,7 +1,7 @@
 ---
-title: 'Hybrid Connectivity Outage: ExpressRoute Gateway Control-Plane Failure RCA'
+title: 'How to Diagnose Azure ExpressRoute Gateway Control-Plane Failure'
 date: '2026-06-04'
-summary: 'Production outage RCA: ExpressRoute Gateway BGP sessions showed Connected while the control plane silently corrupted the routing table, dropping all cross-premises traffic. 47 minutes to detect the real cause, 25 minutes to fail over to a secondary region. Full incident timeline, every diagnostic command, and the zone-redundant HA architecture we built afterwards.'
+summary: 'If your ExpressRoute Gateway shows BGP Connected but cross-premises traffic is down and effective routes on spoke VNet NICs are empty, the gateway has a control-plane failure. This guide covers the diagnostic commands to confirm it, a regional failover procedure, and the zone-redundant HA architecture to prevent recurrence.'
 tags: ['Azure', 'ExpressRoute', 'BGP', 'Hybrid Connectivity', 'Troubleshooting', 'High Availability', 'VPN Gateway']
 postType: troubleshooting
 featured: true
@@ -11,68 +11,57 @@ draft: false
 coverImage: '/images/blog/hybrid-connectivity-outage-cover.svg'
 ---
 
-At 03:14 UTC on a Thursday, our monitoring system fired a P1 alert: twelve on-premises manufacturing sites had lost connectivity to Azure. The VMs running the factory floor integration services were unreachable from the corporate network. Production line reporting had stopped updating.
+If your ExpressRoute Gateway shows **BGP: Connected** in the portal but cross-premises traffic is completely down, the gateway may have a control-plane failure. This is one of the hardest failure modes to diagnose because every surface-level health indicator — BGP session state, gateway provisioning state, resource health — shows green while the data plane is dropping all traffic.
 
-What made this incident genuinely difficult was the lie at the top of the stack: the ExpressRoute Gateway showed **BGP: Connected** in the Azure portal for the entire 47 minutes it took us to find the real root cause. Every status indicator said the circuit was healthy. It wasn't.
-
-This is the full RCA.
+This guide covers how to confirm the failure, how to fail over to a secondary region, how to rebuild the gateway, and the HA architecture changes that prevent recurrence.
 
 ---
 
 ## Architecture Overview
 
-Our hybrid connectivity uses dual ExpressRoute circuits — one primary (West US 2) and one failover (East US) — both terminated on the same ExpressRoute Gateway in the primary region. On-premises, we run two Cisco ASR 1001-X routers (one per circuit) in BGP AS 65010. Azure runs AS 65515.
+This guide assumes a dual ExpressRoute circuit topology: one primary circuit and one failover circuit, both terminated on the same ExpressRoute Gateway in the primary region. On-premises runs two CE routers in BGP AS 65010. Azure runs AS 65515.
 
 <DiagramImage
   src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Hybrid_ExpressRoute_architecture_diagram_fhljiq"
   alt="Hybrid connectivity architecture: on-premises AS 65010 with dual Cisco ASR routers connecting via two ExpressRoute circuits to an ExpressRoute Gateway in West US 2, peered to Hub VNet with spoke VNets"
-  caption="Pre-incident architecture: dual ExpressRoute circuits, active-active BGP sessions, Hub-Spoke VNet layout"
+  caption="Reference architecture: dual ExpressRoute circuits, active-active BGP sessions, Hub-Spoke VNet layout"
 />
 
 **Normal traffic flow:**
-- Twelve on-prem sites connect to the primary ASR via MPLS
+- On-premises sites connect to the primary ASR via MPLS
 - Primary circuit (West US 2): active, preferred path via BGP MED
 - Failover circuit (East US): hot-standby, accepts traffic within 30 seconds if primary fails
-- Hub VNet (10.0.0.0/16) peers to six spoke VNets via VNet peering
-- ExpressRoute Gateway: `ErGw1AZ` SKU, Zone-Redundant (post-incident change; was `Standard` before)
+- Hub VNet (10.0.0.0/16) peers to spoke VNets via VNet peering
+- ExpressRoute Gateway: `ErGw1AZ` SKU, Zone-Redundant (recommended; see HA section)
 
 Under normal conditions, the gateway processes ~800 BGP prefixes: 620 from on-prem and 180 Azure routes propagated back to the CE routers.
 
 ---
 
-## Alert and Initial Symptoms
+## Identifying the Failure
 
-**03:14 UTC — Alert fires:**
+The symptom pattern that indicates a control-plane failure rather than a BGP session or circuit problem:
 
-```
-ALERT [P1]: Cross-premises connectivity failure
-Scope: 12 sites × manufacturing integration VMs
-Metric: ExpressRouteGatewayPacketsPerSecond = 0
-Duration: 3 minutes (threshold: 2 minutes)
-```
-
-The `ExpressRouteGatewayPacketsPerSecond` metric dropping to zero is unambiguous — no data-plane packets flowing through the gateway. The alert was configured after a near-miss six months earlier when a misconfigured route filter silently dropped selective traffic for four hours before anyone noticed.
-
-**What the portal showed at 03:15:**
+**What the portal shows (all green, all wrong):**
 
 | Component | Status shown |
 |-----------|-------------|
 | ExpressRoute Circuit (primary) | **Provisioned — ✓** |
 | ExpressRoute Circuit (failover) | **Provisioned — ✓** |
 | ExpressRoute Gateway | **Succeeded** |
-| BGP peer 10.10.1.1 (primary CE) | **Connected** |
-| BGP peer 10.10.1.5 (failover CE) | **Connected** |
+| BGP peer (primary CE) | **Connected** |
+| BGP peer (failover CE) | **Connected** |
 | Gateway health probe | **Healthy** |
 
-Everything green. Nothing in the Activity Log. No resource health events. No Service Health alerts for West US 2.
+**What you actually have: zero data-plane traffic.**
 
-This is the situation that costs you the most time: all the leading indicators say everything is fine, but production is down.
+The alert that catches this is `ExpressRouteGatewayPacketsPerSecond = 0` for more than 2 minutes. If you don't have this alert, add it — it is the only metric that catches a data-plane failure independently of the BGP session state.
 
 ---
 
 ## Phase 1 — Confirming the Scope
 
-Before touching anything, we confirmed what was and wasn't working.
+Before changing anything, confirm what is and isn't working.
 
 **From on-premises (CE router):**
 
@@ -83,20 +72,18 @@ Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ  Up/Down State/PfxRcd
 10.0.0.5        4 65515    4820    4818     2841    0    0  2d09h        188
 ```
 
-BGP sessions to Azure's two gateway IPs were both up, with the expected prefix counts. Hold timers refreshing normally. From the on-premises side, BGP was completely healthy.
+If BGP sessions on the CE router show Up with normal prefix counts, the failure is on the Azure side.
 
 **Reachability test from on-prem:**
 
 ```bash
-# Ping Azure spoke VM
+# Ping Azure spoke VM — look for intermittent, not total loss
 ping 10.1.4.22 repeat 100 timeout 2
-# Result: !!!!!!!!!!!!! (12 successes, 88 timeouts)
-# Intermittent — not total packet loss
 ```
 
-Intermittent, not total. That shifted the diagnosis away from a BGP session being down (which would be total loss) toward a routing plane issue.
+Intermittent loss points to a routing plane issue, not a session being down (which would be total loss).
 
-**From Azure (checking effective routes on a spoke VM NIC):**
+**From Azure — check effective routes on a spoke VM NIC:**
 
 ```bash
 az network nic show-effective-route-table \
@@ -105,19 +92,13 @@ az network nic show-effective-route-table \
   --output table | grep "10.10\|10.20\|10.30"
 ```
 
-```
-Source    State    AddressPrefix    NextHopType       NextHopIP
--------   ------   -------------    -----------       ---------
-(empty)
-```
-
-No on-premises routes. The spoke VM's NIC effective route table had no entries for the 10.10.x.x, 10.20.x.x, or 10.30.x.x on-premises supernets. That's the smoking gun: Azure VMs had no route to on-premises, despite the BGP sessions showing healthy.
+If this returns empty — no on-premises routes in the spoke VM's effective route table — that is the confirmation. Azure VMs have no route to on-premises despite the BGP sessions showing healthy.
 
 ---
 
 ## Phase 2 — Gateway Diagnostics
 
-**03:31 UTC — Checking what the gateway actually knows:**
+**Check what the gateway actually knows:**
 
 ```bash
 # What routes has the gateway learned from on-prem?
@@ -127,9 +108,7 @@ az network vnet-gateway list-learned-routes \
   --output json | jq 'length'
 ```
 
-Output: `0`
-
-The ExpressRoute Gateway had learned **zero routes** from the on-premises BGP peers — despite both BGP sessions showing as Connected. This is the central contradiction of the incident. A BGP session can be in the Established state (keepalives exchanging, hold timer refreshing) while the **route table** is completely empty due to a control-plane processing failure.
+If this returns `0`, the gateway has a control-plane failure. A BGP session can be in the Established state (keepalives exchanging, hold timer refreshing) while the route table is completely empty due to a control-plane processing failure.
 
 ```bash
 # Check the BGP peer status from Azure's side
@@ -146,7 +125,7 @@ Neighbor    ASN    State        ConnectedDuration    RoutesReceived    MessagesS
 10.10.1.5   65010  Connected    2.09:13:58           0                 4818            4820
 ```
 
-`RoutesReceived: 0` on both peers. The gateway control plane had accepted the TCP sessions and was exchanging keepalives but had not processed a single UPDATE message from either CE router. The gateway was deaf to BGP UPDATE packets while still participating in the BGP session.
+`RoutesReceived: 0` on both peers while `State: Connected` is the definitive sign of a control-plane failure. The gateway accepted the TCP sessions and is exchanging keepalives but has not processed a single UPDATE message from either CE router.
 
 **Checking gateway resource health:**
 
@@ -156,28 +135,18 @@ az resource show \
   --query "properties.provisioningState"
 ```
 
-Output: `"Succeeded"`
-
-```bash
-# Check recent operations
-az monitor activity-log list \
-  --resource-id "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/rg-hub-westus2/providers/Microsoft.Network/virtualNetworkGateways/er-gateway-hub" \
-  --start-time "2026-06-04T03:00:00Z" \
-  --output table
-```
-
-No operations. The gateway hadn't been modified. No platform operations. No scale events. The control-plane failure was silent — Azure's management plane considered the gateway healthy while the data plane control processor had entered a failed state.
+This will return `"Succeeded"` even when the control plane is broken. The management plane health check polls BGP session state and the gateway's VM-level health — neither catches a FIB programming failure.
 
 ---
 
 ## Phase 3 — BGP Troubleshooting
 
-We queried the gateway diagnostics logs to confirm the UPDATE processing failure.
+Run this diagnostic flowchart to confirm the failure mode before deciding on a remediation path:
 
 <DiagramImage
   src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Gateway_failure_troubleshooting_flowchart_ahfqyd"
   alt="Gateway failure troubleshooting flowchart showing 5 decision steps: BGP session state check, route count check, UPDATE message processing check, control-plane health check, and failover decision"
-  caption="The 5-step diagnostic flowchart we ran. The BGP session state check (step 1) passed — that's what added 47 minutes to the incident."
+  caption="The 5-step diagnostic flowchart. If BGP session state (step 1) passes but route count (step 2) is zero, you have a control-plane failure — proceed to failover."
 />
 
 **KQL — BGP UPDATE processing in gateway diagnostic logs:**
@@ -192,71 +161,52 @@ AzureDiagnostics
 | order by TimeGenerated desc
 ```
 
-The query returned keepalive logs going back two days (normal) but **no UPDATE RECEIVED entries** after `2026-06-01T18:23:41Z` — three days before the incident. The gateway had stopped processing UPDATE messages 72 hours before the alert fired, but the route table corruption wasn't noticed because the routes were already programmed from the last successful UPDATE cycle and remained in the routing table until the gateway performed an internal refresh at 03:11 UTC — at which point it cleared its stale route table and couldn't repopulate it.
+If this query returns keepalive logs but no `UPDATE RECEIVED` entries for several hours or days, the gateway has stopped processing UPDATE messages while still maintaining the BGP TCP session.
 
 The BGP route flow under normal operation:
 
 <DiagramImage
   src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/BGP_route_flow_diagram_ycu8za"
   alt="BGP route flow diagram showing the 5-step sequence: OPEN message exchange establishing the session, KEEPALIVE exchange, UPDATE messages carrying prefixes, ACK from peer, and INSTALL into the FIB"
-  caption="BGP route programming flow. The gateway was completing steps 1–3 (session, keepalive) but failing silently at step 4 — UPDATE processing. Routes were never installed into the FIB."
+  caption="BGP route programming flow. A control-plane failure breaks at step 4 — UPDATE processing. Routes are never installed into the FIB despite the session appearing healthy."
 />
 
-In our incident, the gateway was executing steps 1 through 3 successfully (the BGP TCP session was up and keepalives were exchanging). The failure was at step 4: the control-plane processor responsible for parsing UPDATE message TLVs and installing routes into the Forwarding Information Base (FIB) had entered a failed state. Azure's management plane health checks poll the BGP session state and the gateway's VM-level health — neither of which catches a FIB programming failure.
+In a control-plane failure, steps 1 through 3 complete successfully (BGP TCP session up, keepalives exchanging). The failure is at step 4: the control-plane processor parsing UPDATE message TLVs and installing routes into the Forwarding Information Base (FIB). Azure's management plane health checks poll the BGP session state and the gateway's VM-level health — neither catches a FIB programming failure.
 
 ---
 
-## Root Cause
+## Root Cause Pattern
 
-**Control-plane route table corruption following a platform firmware update.**
+Control-plane route table corruption following a platform firmware update is the documented root cause for this failure pattern. The gateway's non-zone-redundant SKU (`Standard`) can receive a firmware update that leaves the BGP route processor in a degraded state: it accepts TCP-level BGP session establishment and keepalive traffic but silently drops UPDATE packets without logging the failure or surfacing it via the resource health API.
 
-Azure's platform team later confirmed via support case that the ExpressRoute Gateway's non-zone-redundant SKU (`Standard`) had received a firmware update on June 1 at 18:23 UTC. The update completed successfully on the primary gateway instance but left the BGP route processor in a degraded state where it accepted TCP-level BGP session establishment and keepalive traffic but silently dropped UPDATE packets without logging the failure or surfacing it via the resource health API.
+The degraded state persists until the gateway's internal route refresh timer fires, at which point it clears the stale route table and attempts to re-learn all routes from scratch. With the UPDATE processor still degraded, the re-learn produces an empty routing table. Effective routes on every spoke VNet NIC go to zero and traffic drops.
 
-The degraded state persisted until 03:11 UTC on June 4 when the gateway's internal route refresh timer fired. The refresh cleared the stale route table (which had been programmed from the last successful UPDATE on June 1) and attempted to re-learn all routes from scratch. With the UPDATE processor still degraded, the re-learn produced an empty routing table. The effective routes on every spoke VNet NIC went to zero. Traffic dropped.
-
-**Why BGP showed Connected:** The BGP TCP session and keepalive functions run on a separate process from the UPDATE handler. The keepalive process was healthy; the UPDATE handler was not. Azure's health model polled the session state, not the FIB state.
-
-**Why it took 47 minutes to find:** The BGP session status is the first thing every network engineer checks. It showed Connected. Every subsequent check that confirmed BGP was working (CE router BGP summary, UPDATE message counters) was directionally misleading because the failure was on the Azure side of the path, not the circuit or CE router side. We didn't check `list-learned-routes` until Phase 2, 17 minutes into the incident.
+**Why BGP shows Connected:** The BGP TCP session and keepalive functions run on a separate process from the UPDATE handler. The keepalive process is healthy; the UPDATE handler is not.
 
 ---
 
-## Decision to Fail Over
-
-**03:47 UTC — Failover decision:**
-
-At this point we had confirmed:
-- On-prem BGP healthy (CE routers normal)
-- ExpressRoute circuits healthy (provisioned, no alarms)
-- Gateway management plane healthy (provisioningState: Succeeded)
-- Gateway control plane broken (0 learned routes despite Connected peers)
-- Root cause: gateway internal failure, not fixable via configuration
-
-Options considered:
+## Decision: Reset vs Recreate vs Failover
 
 | Option | Time estimate | Risk |
 |--------|--------------|------|
 | Gateway reset (soft restart) | ~5 min | May not fix firmware-level failure |
 | Gateway delete + recreate | ~45 min | Long outage extension |
-| **Regional failover to East US** | **~25 min** | Low — failover circuit already provisioned |
+| **Regional failover to secondary** | **~25 min** | Low — if failover circuit is provisioned |
 | Wait for Azure support | Unknown | Unacceptable for P1 |
 
-We chose regional failover. The failover ExpressRoute circuit had been provisioned for exactly this scenario: a gateway-level failure in the primary region that couldn't be fixed quickly. The decision was made at 03:47 — 33 minutes into the incident.
+If you have a pre-provisioned failover circuit in a secondary region, regional failover is the fastest path to restoring traffic. Use gateway reset first if you want to attempt a quick fix — but be prepared to proceed to failover if it doesn't work within 5 minutes.
 
 <DiagramImage
   src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Regional_failover_architecture_diagram_vbxcrw"
   alt="Regional failover architecture diagram showing Primary Region (West US 2) with failed gateway marked with red X, and Secondary Region (East US) with working gateway receiving traffic via green failover arrows from on-premises"
-  caption="Failover execution: traffic rerouted from failed West US 2 gateway to healthy East US gateway via the pre-provisioned failover circuit"
+  caption="Regional failover: traffic reroutes from the failed primary gateway to the healthy secondary via the pre-provisioned failover circuit"
 />
 
 ---
 
 ## Failover Execution
 
-**03:49 UTC — Start failover:**
-
-The failover circuit connected to an ExpressRoute Gateway in East US (`er-gateway-eastus`, `Standard` SKU). The Hub VNet in East US was already peered to the critical spoke VNets via Global VNet Peering.
-
-**Step 1 — Confirm failover gateway is healthy:**
+**Step 1 — Confirm the failover gateway is healthy:**
 
 ```bash
 az network vnet-gateway list-bgp-peer-status \
@@ -265,17 +215,9 @@ az network vnet-gateway list-bgp-peer-status \
   --output table
 ```
 
-```
-Neighbor    ASN    State        RoutesReceived
-----------  -----  -----------  ----------------
-10.10.2.1   65010  Connected    621
-```
+Verify `State: Connected` and `RoutesReceived` is non-zero before proceeding.
 
-621 routes received — East US gateway was healthy and had a full routing table.
-
-**Step 2 — Prepend AS path on primary CE to drain traffic toward East US:**
-
-Rather than cutting over the circuit, we used BGP AS path prepending on the primary CE router to make the failed gateway's path less preferred, forcing on-premises traffic to shift to the failover circuit.
+**Step 2 — Prepend AS path on primary CE to drain traffic toward the failover circuit:**
 
 ```
 ASR1001X-primary# conf t
@@ -290,45 +232,17 @@ ASR1001X-primary# clear ip bgp 10.0.0.4 soft out
 ASR1001X-primary# clear ip bgp 10.0.0.5 soft out
 ```
 
-The prepend didn't help Azure accept routes (the UPDATE processor was broken) but it told on-premises traffic to prefer the East US path for return traffic symmetry.
-
-**Step 3 — Force Azure to use East US path for VNet-to-on-prem traffic:**
+**Step 3 — Update spoke VNet peering to use the secondary region's hub as the gateway transit:**
 
 ```bash
-# Add a route table on the Hub VNet GatewaySubnet to force traffic to East US
-# (This is a temporary override while primary gateway is broken)
-az network route-table create \
-  --resource-group rg-hub-westus2 \
-  --name rt-force-eastus-failover \
-  --disable-bgp-route-propagation true
-
-az network route-table route create \
-  --resource-group rg-hub-westus2 \
-  --route-table-name rt-force-eastus-failover \
-  --name route-onprem-10-10 \
-  --address-prefix "10.10.0.0/16" \
-  --next-hop-type VirtualNetworkGateway
-
-# Apply to spoke VNet subnets that host integration VMs
-az network vnet subnet update \
-  --resource-group rg-spoke-manufacturing \
-  --vnet-name vnet-spoke-manufacturing \
-  --name snet-integration \
-  --route-table rt-force-eastus-failover
-```
-
-Wait — this doesn't point to the East US gateway directly. The VirtualNetworkGateway next-hop on a spoke VNet uses the Hub VNet's gateway via peering. Since the Hub VNet is peered to both West US 2 and East US Hubs, we needed to update the peering to use the East US Hub's gateway.
-
-**Correct Step 3 — Update VNet peering to use East US hub gateway:**
-
-```bash
-# Update spoke VNet peering to use East US hub as gateway transit
+# Disable gateway transit from the broken primary hub
 az network vnet peering update \
   --resource-group rg-spoke-manufacturing \
   --vnet-name vnet-spoke-manufacturing \
   --name peer-to-hub-westus2 \
   --set useRemoteGateways=false
 
+# Add peering to the secondary hub with gateway transit
 az network vnet peering create \
   --resource-group rg-spoke-manufacturing \
   --vnet-name vnet-spoke-manufacturing \
@@ -338,24 +252,18 @@ az network vnet peering create \
   --use-remote-gateways true
 ```
 
-**04:09 UTC — Connectivity confirmed restored:**
+**Verify connectivity restored:**
 
-```
+```bash
 ping 10.1.4.22 repeat 100 timeout 2
-# Result: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# 100/100 success
+# Expected: 100/100 success
 ```
-
-Total failover time from decision to restored: **22 minutes.**
-Total incident duration: **55 minutes** (03:14 → 04:09).
 
 ---
 
 ## Gateway Rebuild
 
-With production restored via the East US failover, we turned to the West US 2 gateway.
-
-**04:30 UTC — Gateway reset (first attempt):**
+**Gateway reset (first attempt):**
 
 ```bash
 az network vnet-gateway reset \
@@ -363,7 +271,7 @@ az network vnet-gateway reset \
   --name er-gateway-hub
 ```
 
-This resets the gateway (causes a ~30-second downtime cycle on non-zone-redundant gateways). After the reset, we checked route learning:
+After reset, re-check route learning:
 
 ```bash
 az network vnet-gateway list-learned-routes \
@@ -372,14 +280,12 @@ az network vnet-gateway list-learned-routes \
   --output json | jq 'length'
 ```
 
-Output: `0` — still broken after reset.
+If still `0`, proceed to delete and recreate. Take this opportunity to upgrade to a Zone-Redundant SKU.
 
-**05:15 UTC — Gateway delete and recreate:**
-
-The reset did not fix the firmware-level corruption. We deleted and recreated the gateway, taking the opportunity to upgrade from `Standard` to `ErGw1AZ` (Zone-Redundant).
+**Delete and recreate with Zone-Redundant SKU:**
 
 ```bash
-# Delete the broken gateway (traffic is on East US path, so no additional outage)
+# Delete the broken gateway (traffic is on the failover path, no additional outage)
 az network vnet-gateway delete \
   --resource-group rg-hub-westus2 \
   --name er-gateway-hub
@@ -396,40 +302,34 @@ az network vnet-gateway create \
   --no-wait
 ```
 
-The `ErGw1AZ` SKU deploys gateway instances across Azure Availability Zones. A zone failure cannot take out the gateway — at least one instance is always available in a different zone. The firmware-level failure we experienced would have been caught by Azure's zone-health monitoring had we been on a zone-redundant SKU.
-
-Gateway recreation completed at **06:47 UTC.** ExpressRoute connections were re-attached, BGP reconverged, and we validated full route learning:
+After recreation (approximately 45 minutes), verify full route learning:
 
 ```bash
 az network vnet-gateway list-learned-routes \
   --resource-group rg-hub-westus2 \
   --name er-gateway-hub \
   --output json | jq 'length'
-# Output: 621
+# Expected: same as pre-failure baseline
 ```
 
-We then reverted the spoke VNet peering to use the rebuilt West US 2 gateway and removed the East US failover peering.
+Then revert the spoke VNet peering to use the rebuilt primary gateway and remove the failover peering.
 
 ---
 
-## Results
+## Results After Remediation
 
 | Metric | Before failover | After failover | After rebuild |
 |--------|----------------|----------------|---------------|
 | Cross-prem connectivity | ✗ Down | ✓ Via East US | ✓ Via West US 2 |
 | Gateway learned routes | 0 | 621 (East US) | 621 (West US 2) |
-| Outage duration | — | 55 min | — |
-| Failover time | — | 22 min | — |
 | Gateway SKU | Standard | Standard (EU) | ErGw1AZ |
 | Zone-redundant | No | No | **Yes** |
 
 ---
 
-## Alerting Added After the Incident
+## Alerting to Add
 
-The `ExpressRouteGatewayPacketsPerSecond = 0` alert fired correctly. But it fired 47 minutes into a 3-day silent degradation. We added two new alerts to catch the pre-failure state earlier:
-
-**Alert 1 — Zero routes learned (catches the exact failure mode):**
+**Alert 1 — Zero routes learned (catches this exact failure mode):**
 
 ```bash
 az monitor metrics alert create \
@@ -442,8 +342,6 @@ az monitor metrics alert create \
   --severity 1 \
   --description "ER Gateway learned fewer than 100 BGP routes — possible control-plane failure"
 ```
-
-Note: `ExpressRouteBgpPeerRouteCount` is a metric available in Azure Monitor for ExpressRoute Gateways. A threshold of 100 gives a comfortable buffer below our normal 621 while catching a near-zero state immediately.
 
 **Alert 2 — Log Analytics: BGP UPDATE absence detection:**
 
@@ -459,13 +357,11 @@ AzureDiagnostics
 | where UpdateCount == 0
 ```
 
-This query, run as a Log Analytics scheduled alert every 30 minutes during business hours, would have caught the June 1 failure on June 1 — not three days later.
+This query, run as a Log Analytics scheduled alert every 30 minutes, catches the silent degradation mode before it causes a full outage.
 
 ---
 
 ## High Availability Recommendations
-
-Based on this incident, here's the HA architecture we implemented:
 
 <DiagramImage
   src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Final_high-availability_reference_architecture_diagram_oljlgs"
@@ -475,25 +371,23 @@ Based on this incident, here's the HA architecture we implemented:
 
 **Change 1 — Zone-Redundant Gateway SKU (`ErGw1AZ`)**
 
-The `Standard` SKU runs both gateway instances in the same fault domain. A firmware failure affecting that fault domain takes out both instances simultaneously. `ErGw1AZ` distributes instances across Availability Zones — a zone failure or zone-scoped firmware issue cannot take out the gateway.
-
-Cost delta: approximately $220/month more than `Standard` in West US 2. Worth it.
+The `Standard` SKU runs both gateway instances in the same fault domain. A firmware failure affecting that fault domain takes out both instances simultaneously. `ErGw1AZ` distributes instances across Availability Zones — a zone failure or zone-scoped firmware issue cannot take out the entire gateway.
 
 **Change 2 — BGP route count metric alert**
 
-`ExpressRouteBgpPeerRouteCount < 100` alerts within 5 minutes of the route table going to near-zero. This alert would have fired at 03:11 UTC in our incident — 3 minutes after the route table cleared — giving us a direct signal instead of the indirect `PacketsPerSecond = 0` alert that fired 3 minutes later.
+`ExpressRouteBgpPeerRouteCount < 100` alerts within 5 minutes of the route table going to near-zero. This fires immediately when the route table clears — well before traffic drops are detected by application-layer monitoring.
 
 **Change 3 — Automated BGP UPDATE audit**
 
-A Log Analytics scheduled alert query (shown above) runs every 30 minutes and fires if no BGP UPDATE RECEIVED log entries appear in the last 30 minutes while the BGP session is up. This catches the silent degradation before it becomes an outage.
+The Log Analytics scheduled alert shown above catches the silent pre-failure degradation mode. Add it — it costs nothing and catches a failure mode that Azure's built-in health APIs do not surface.
 
 **Change 4 — Pre-tested failover runbook**
 
-We documented and tested the full failover procedure (the commands in the Failover Execution section above) as an Azure Runbook. The runbook can be triggered from an alert action group. Target: failover in under 10 minutes via automation instead of 22 minutes of manual CLI.
+Document and test the full failover procedure (the commands in the Failover Execution section above) as an Azure Runbook. Target: under 10 minutes via automation. Untested runbooks run in 20+ minutes under pressure.
 
 **Change 5 — Global VNet Peering pre-provisioned**
 
-The Global VNet Peering between West US 2 Hub and East US Hub now exists permanently (not provisioned during the incident). Spoke VNet peering changes are the only manual steps needed during failover.
+Keep the Global VNet Peering between the primary and secondary Hub VNets active at all times. Spoke VNet peering changes are the only manual steps needed during failover.
 
 ---
 
@@ -505,34 +399,34 @@ The Global VNet Peering between West US 2 Hub and East US Hub now exists permane
 | BGP route count alert | Alert when `ExpressRouteBgpPeerRouteCount < 50%` of expected baseline |
 | BGP UPDATE audit | Log Analytics scheduled query every 30 min during business hours |
 | Failover circuit | Pre-provisioned hot-standby circuit in a second region |
-| Failover runbook | Tested automation that can complete failover in < 10 minutes |
+| Failover runbook | Tested automation that completes failover in < 10 minutes |
 | Peering pre-provisioned | Global VNet Peering between Hub VNets in both regions always active |
 | Gateway diagnostic logs | Enable `GatewayDiagnosticLog` on all ExpressRoute Gateways |
 
 ---
 
-## Lessons Learned
+## Key Takeaways
 
 **1. BGP session state is not a health signal for the data plane.**
 
-A BGP session can be in the Established state while the route programming pipeline is completely broken. `show bgp summary` on the CE router and the BGP peer status in Azure both said healthy for 47 minutes while zero packets were being forwarded. Design your monitoring to check **learned routes** and **effective routes**, not just session state.
+A BGP session can be in the Established state while the route programming pipeline is completely broken. Design your monitoring to check **learned routes** and **effective routes**, not just session state.
 
 **2. The route count metric is your early warning system.**
 
-`ExpressRouteBgpPeerRouteCount` dropping from 621 to 0 is an unambiguous signal. The `PacketsPerSecond` metric dropping to zero is a consequence — it tells you the outage has started, not that it's about to start. Monitor the cause, not just the effect.
+`ExpressRouteBgpPeerRouteCount` dropping to zero is unambiguous. The `PacketsPerSecond` metric dropping to zero is a consequence — it tells you the outage has started, not that it's about to start. Monitor the cause, not just the effect.
 
 **3. Gateway reset does not fix firmware-level failures.**
 
-`az network vnet-gateway reset` is the right first action for many gateway issues (stuck BGP sessions, transient VPN disconnects). It did not help here because the failure was in the firmware layer, not the BGP process. Know when to skip to recreate.
+`az network vnet-gateway reset` is correct for stuck BGP sessions and transient disconnects. It does not fix firmware-layer corruption. Know when to skip to recreate.
 
 **4. Zone-redundant SKUs are not optional for production ExpressRoute.**
 
-The `Standard` SKU's single fault domain is exactly the attack surface this firmware failure exploited. `ErGw1AZ` would not have prevented the firmware update from reaching one zone, but Azure's zone-health monitoring would have detected the unhealthy zone and shifted traffic to a healthy zone instance, probably before the incident even surfaced.
+The `Standard` SKU's single fault domain is exactly the attack surface a firmware failure exploits. `ErGw1AZ` distributes instances across zones — Azure's zone-health monitoring detects an unhealthy zone and shifts traffic to a healthy instance before the failure surfaces to users.
 
 **5. Failover circuits must be tested, not just provisioned.**
 
-Our failover circuit had been provisioned and BGP was configured, but we had never executed the peering change procedure under pressure. It took 22 minutes. With the runbook, pre-provisioned peering, and one practice run, we now target 8 minutes.
+A pre-provisioned failover circuit that has never been tested can take 20+ minutes under pressure. With a documented runbook and one practice run, the same procedure takes under 10 minutes.
 
 **6. Silent failures need active detection.**
 
-This failure was silent for 72 hours before it surfaced. The only reason it surfaced at all was the internal route refresh timer. Without the BGP UPDATE audit query, this category of failure is invisible to standard monitoring until production drops. Add the audit query — it costs almost nothing and catches a failure mode that Azure's built-in health APIs currently do not surface.
+A control-plane UPDATE processing failure is invisible to standard monitoring until the route refresh timer fires and traffic drops. The BGP UPDATE audit query costs almost nothing and catches this failure mode days before it surfaces.

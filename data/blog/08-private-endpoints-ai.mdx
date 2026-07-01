@@ -1,7 +1,7 @@
 ---
-title: 'Private Endpoints for Azure OpenAI: The Gotchas Nobody Warns You About'
+title: 'Fixing Private Endpoint Issues with Azure OpenAI: DNS, NSG, and SDK'
 date: '2026-04-02'
-summary: 'Private endpoints for Azure OpenAI look simple in the documentation. In production, DNS resolution, NSG rules, and SDK configuration each have a specific failure mode that is not obvious from error messages. Here is how to fix all three.'
+summary: 'If your Azure OpenAI calls fail after adding a private endpoint — with timeouts, 401s, or connections that bypass the endpoint entirely — the cause is almost always in one of four places: DNS resolution, App Service VNet routing, NSG subnet policies, or SDK endpoint configuration. Here is how to diagnose and fix each one.'
 tags: ['Azure', 'Networking', 'OpenAI', 'PrivateEndpoints', 'Troubleshooting']
 postType: troubleshooting
 featured: false
