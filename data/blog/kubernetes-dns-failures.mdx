@@ -1,0 +1,602 @@
+---
+title: 'Kubernetes DNS Resolution Failures: CoreDNS Upstream Forwarding Broken by resolv.conf Drift'
+date: '2026-06-18'
+summary: 'DNS failures on a subset of AKS pods with no CoreDNS errors and no obvious cause. Root cause: a node pool upgrade silently diverged /etc/resolv.conf on affected worker nodes, breaking CoreDNS upstream forwarding asymmetrically — some nodes resolved fine, others failed. Full diagnostic walkthrough, busybox tests, node-level comparison, and the fix.'
+tags: ['Kubernetes', 'AKS', 'CoreDNS', 'DNS', 'Troubleshooting', 'Networking']
+postType: troubleshooting
+featured: true
+authors: ['NVN']
+membersOnly: false
+draft: false
+coverImage: '/images/blog/kubernetes-dns-failures-cover.svg'
+---
+
+The report came in from the backend team at 10:42: some pods couldn't resolve external hostnames. Not all pods — just some. Two replicas of the same Deployment were behaving differently: one resolved `api.stripe.com` fine, the other timed out. The pods were identical. The ConfigMaps were identical. The environment variables were identical.
+
+The difference was which node each pod had been scheduled on.
+
+This is the diagnostic walkthrough and the root cause.
+
+---
+
+## Understanding Kubernetes DNS Architecture
+
+Before walking through the investigation, it helps to understand how DNS resolution works inside a Kubernetes cluster, because the failure mode here is in the forwarding path — not in the CoreDNS service itself.
+
+<DiagramImage
+  src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Kubernetes_DNS_ArchiTecture_z5o0vr"
+  alt="Kubernetes DNS architecture diagram showing the 5-step resolution flow: Pod sends UDP/53 query to the cluster DNS service IP, CoreDNS receives and checks its cache, CoreDNS forwards to upstream resolvers via the node's /etc/resolv.conf, upstream resolver returns the answer, CoreDNS caches and returns to the pod"
+  caption="Kubernetes DNS resolution flow. Step 3 (CoreDNS → upstream resolver) is where our failure occurred — and why it was asymmetric across nodes."
+/>
+
+**The 5-step DNS resolution path in AKS:**
+
+1. **Pod sends query** to the cluster DNS service IP (usually `10.0.0.10` — the `kube-dns` service ClusterIP). This IP is injected into every pod's `/etc/resolv.conf` by the kubelet at pod startup.
+
+2. **CoreDNS receives the query.** For cluster-internal names (`.cluster.local` suffix), CoreDNS answers directly from its in-cluster knowledge. For external names (`api.stripe.com`, `storage.googleapis.com`), CoreDNS forwards to upstream resolvers.
+
+3. **CoreDNS forwards to upstream.** The upstream resolver addresses come from the **node's `/etc/resolv.conf`** — not from a ConfigMap, not from a Kubernetes object. The DNS Operator (in AKS this is the kubelet's `--resolv-conf` flag; in OpenShift it is the DNS Operator managing `SystemResolvConf`) reads the node's resolver config and propagates it into CoreDNS's Corefile at startup.
+
+4. **Upstream resolver answers.** The upstream (Azure DNS at `168.63.129.16` in AKS, or a custom resolver if configured) resolves the external name and returns the answer.
+
+5. **CoreDNS caches and responds to the pod.** The pod's DNS client receives the answer and proceeds.
+
+The critical point: **if the node's `/etc/resolv.conf` is wrong, CoreDNS on that node's pod will forward to the wrong upstream, and all pods scheduled on that node will fail to resolve external names.** Pods on correctly-configured nodes will be fine. This produces exactly the asymmetric failure we observed.
+
+---
+
+## Symptoms
+
+**What the backend team reported:**
+
+```
+Error: getaddrinfo ENOTFOUND api.stripe.com
+    at GetAddrInfoReqWrap.onlookup [as oncomplete] (dns.js:66:26)
+```
+
+The error was happening inside a Node.js payment service. The pod had been running for six days without issue. No recent code changes. No ConfigMap changes. No network policy changes.
+
+**What made it immediately suspicious:**
+
+```bash
+kubectl get pods -n payments -o wide
+```
+
+```
+NAME                          READY   STATUS    NODE
+payment-api-7d9f84b6c-k2x9p   1/1     Running   aks-nodepool1-45821003-vmss000045
+payment-api-7d9f84b6c-m7r3t   1/1     Running   aks-nodepool1-45821003-vmss000032
+```
+
+Two pods from the same Deployment. One on node `vmss000045` (failing), one on `vmss000032` (healthy). Same image, same env, same resource limits. The only difference: the node.
+
+**Quick replication test:**
+
+```bash
+# Exec into the failing pod
+kubectl exec -it payment-api-7d9f84b6c-k2x9p -n payments -- \
+  nslookup api.stripe.com
+
+# Server:         10.0.0.10
+# Address:        10.0.0.10#53
+# ** server can't find api.stripe.com: SERVFAIL
+```
+
+```bash
+# Same test on the healthy pod
+kubectl exec -it payment-api-7d9f84b6c-m7r3t -n payments -- \
+  nslookup api.stripe.com
+
+# Server:         10.0.0.10
+# Address:        10.0.0.10#53
+# Non-authoritative answer:
+# Name:   api.stripe.com
+# Address: 54.166.130.11
+```
+
+Both pods querying the same `kube-dns` service IP (`10.0.0.10`). Both sending to CoreDNS. Different results. The problem is **inside CoreDNS's handling of the request on each node**, not in the pods themselves.
+
+---
+
+## Phase 1 — Pod-Level DNS Testing
+
+Before touching CoreDNS, we exhaustively tested at the pod level to rule out application-layer issues.
+
+**Deploy a busybox test pod pinned to each node:**
+
+```bash
+# Pin a test pod to the failing node
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dns-test-failing-node
+  namespace: payments
+spec:
+  nodeName: aks-nodepool1-45821003-vmss000045
+  containers:
+  - name: busybox
+    image: busybox:1.36
+    command: ["sleep", "3600"]
+  restartPolicy: Never
+EOF
+
+# Pin a test pod to the healthy node
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dns-test-healthy-node
+  namespace: payments
+spec:
+  nodeName: aks-nodepool1-45821003-vmss000032
+  containers:
+  - name: busybox
+    image: busybox:1.36
+    command: ["sleep", "3600"]
+  restartPolicy: Never
+EOF
+```
+
+**Test 1 — External name resolution:**
+
+```bash
+kubectl exec -n payments dns-test-failing-node -- nslookup api.stripe.com
+# ** server can't find api.stripe.com: SERVFAIL
+
+kubectl exec -n payments dns-test-healthy-node -- nslookup api.stripe.com
+# Address: 54.166.130.11 ✓
+```
+
+**Test 2 — Cluster-internal resolution (this should work on both — it's not hitting upstream):**
+
+```bash
+kubectl exec -n payments dns-test-failing-node -- \
+  nslookup kubernetes.default.svc.cluster.local
+# Name:   kubernetes.default.svc.cluster.local
+# Address: 10.0.0.1 ✓
+
+kubectl exec -n payments dns-test-healthy-node -- \
+  nslookup kubernetes.default.svc.cluster.local
+# Name:   kubernetes.default.svc.cluster.local
+# Address: 10.0.0.1 ✓
+```
+
+Cluster-internal DNS worked on both. External DNS failed only on the node `vmss000045`. This confirmed: CoreDNS was functional for in-cluster lookups but its upstream forwarding was broken on the affected node.
+
+**Test 3 — Direct query to Azure DNS bypassing CoreDNS:**
+
+```bash
+# Query Azure DNS directly (bypassing CoreDNS) from inside the failing pod
+kubectl exec -n payments dns-test-failing-node -- \
+  nslookup api.stripe.com 168.63.129.16
+# Address: 54.166.130.11 ✓
+```
+
+Azure DNS itself worked fine. The problem was in the **path between CoreDNS and the upstream resolver**, not in the upstream resolver itself.
+
+**Test 4 — Check what resolvers the pod sees:**
+
+```bash
+kubectl exec -n payments dns-test-failing-node -- cat /etc/resolv.conf
+# search payments.svc.cluster.local svc.cluster.local cluster.local
+# nameserver 10.0.0.10
+# options ndots:5
+```
+
+The pod's `/etc/resolv.conf` was correct — pointing to `kube-dns` at `10.0.0.10`. The kubelet on both nodes had injected the same configuration. Pod-level `/etc/resolv.conf` was not the issue.
+
+---
+
+## Phase 2 — CoreDNS Health Verification
+
+With the pod-level tests pointing at CoreDNS's upstream forwarding, we checked CoreDNS directly.
+
+**List CoreDNS pods and which nodes they run on:**
+
+```bash
+kubectl get pods -n kube-system -l k8s-app=kube-dns -o wide
+```
+
+```
+NAME                       READY   STATUS    NODE
+coredns-65d7c4b75-4xnkq   1/1     Running   aks-nodepool1-45821003-vmss000045
+coredns-65d7c4b75-r8m2w   1/1     Running   aks-nodepool1-45821003-vmss000032
+coredns-65d7c4b75-v9kl1   1/1     Running   aks-nodepool1-45821003-vmss000017
+```
+
+One CoreDNS pod on the failing node, two on healthy nodes. The `kube-dns` service load-balances across all three. When the failing pod's DNS query hit the CoreDNS instance on `vmss000045`, it failed. When it hit the instances on `vmss000032` or `vmss000017`, it succeeded. That's why the failure appeared intermittent at first — it was actually random based on which CoreDNS replica handled the query.
+
+**Check CoreDNS logs on the failing node's pod:**
+
+```bash
+kubectl logs -n kube-system coredns-65d7c4b75-4xnkq --tail=50
+```
+
+```
+[ERROR] plugin/errors: 2 api.stripe.com. A: read udp 10.244.45.4:52841->192.168.0.1:53: i/o timeout
+[ERROR] plugin/errors: 2 api.stripe.com. A: read udp 10.244.45.4:53012->192.168.0.1:53: i/o timeout
+[ERROR] plugin/errors: 2 api.stripe.com. AAAA: read udp 10.244.45.4:41923->192.168.0.1:53: i/o timeout
+```
+
+The upstream it was forwarding to: `192.168.0.1`. That is not Azure DNS. Azure DNS is `168.63.129.16`. The IP `192.168.0.1` is a private RFC 1918 address — likely a router default gateway that doesn't run a DNS resolver.
+
+**Check the Corefile on the failing CoreDNS pod:**
+
+```bash
+kubectl exec -n kube-system coredns-65d7c4b75-4xnkq -- cat /etc/coredns/Corefile
+```
+
+```
+.:53 {
+    errors
+    health {
+        lameduck 5s
+    }
+    ready
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+        pods insecure
+        fallthrough in-addr.arpa ip6.arpa
+        ttl 30
+    }
+    prometheus :9153
+    forward . /etc/resolv.conf {
+        max_concurrent 1000
+    }
+    cache 30
+    loop
+    reload
+    loadbalance
+}
+```
+
+The Corefile uses `forward . /etc/resolv.conf` — meaning CoreDNS reads the **node's `/etc/resolv.conf`** at startup to determine upstream resolvers. Whatever is in that file on the node becomes CoreDNS's upstream.
+
+**Check the CoreDNS pod's `/etc/resolv.conf`:**
+
+```bash
+kubectl exec -n kube-system coredns-65d7c4b75-4xnkq -- cat /etc/resolv.conf
+```
+
+```
+nameserver 192.168.0.1
+search cluster.local
+```
+
+There it is. The CoreDNS pod's `/etc/resolv.conf` contained `192.168.0.1` — not Azure DNS. This file is mounted from the node's resolver config via the kubelet's `--resolv-conf` flag.
+
+---
+
+## Phase 3 — Working vs Failing Node Comparison
+
+Now we needed to look at the nodes directly.
+
+**SSH to the failing node via privileged debug pod:**
+
+```bash
+# Open a privileged shell on the failing node
+kubectl debug node/aks-nodepool1-45821003-vmss000045 \
+  -it --image=mcr.microsoft.com/cbl-mariner/busybox:2.0 \
+  -- chroot /host bash
+```
+
+```bash
+# On the failing node
+cat /etc/resolv.conf
+```
+
+```
+nameserver 192.168.0.1
+search cluster.local
+```
+
+```bash
+# SSH to the healthy node
+kubectl debug node/aks-nodepool1-45821003-vmss000032 \
+  -it --image=mcr.microsoft.com/cbl-mariner/busybox:2.0 \
+  -- chroot /host bash
+```
+
+```bash
+# On the healthy node
+cat /etc/resolv.conf
+```
+
+```
+nameserver 168.63.129.16
+search cluster.local
+```
+
+Confirmed. The failing node had `192.168.0.1` as its nameserver. The healthy node had `168.63.129.16` (Azure DNS). CoreDNS on the failing node was faithfully forwarding to `192.168.0.1` — a host that doesn't resolve DNS queries.
+
+**Check the kubelet configuration on the failing node:**
+
+```bash
+# On the failing node
+cat /etc/default/kubelet | grep resolv
+# --resolv-conf=/run/systemd/resolve/resolv.conf
+
+cat /run/systemd/resolve/resolv.conf
+# nameserver 192.168.0.1
+# search cluster.local
+```
+
+```bash
+# On the healthy node
+cat /run/systemd/resolve/resolv.conf
+# nameserver 168.63.129.16
+# search cluster.local
+```
+
+The kubelet on both nodes was reading `/run/systemd/resolve/resolv.conf` (the systemd-resolved stub resolver's upstream config), but `systemd-resolved` on the failing node had diverged from the correct Azure DNS configuration.
+
+---
+
+## Root Cause — Node Pool Upgrade and DNS Operator Config Drift
+
+**What happened:**
+
+The cluster had been upgraded from Kubernetes 1.29 to 1.30 six days prior. The upgrade rolls nodes in batches — it cordons and drains the old node, provisions a new one, and uncordons. The node pool `nodepool1` had 8 nodes; the upgrade processed them in batches of 2.
+
+During the upgrade of `vmss000045`, the new node's initial VM configuration received the VMSS (VM Scale Set) default network configuration, which included a private VNet DNS server at `192.168.0.1` — a custom DNS forwarder that the team had provisioned two months earlier for on-premises resolution, then decommissioned. The decommissioned forwarder address remained in the AKS VNet's DNS server configuration in Azure (the VNet-level DNS setting, not the AKS cluster DNS setting).
+
+**Why only some nodes:**
+
+Older nodes (`vmss000032`, `vmss000017`, etc.) had been provisioned before the decommissioned forwarder was added to the VNet DNS config. They had Azure DNS (`168.63.129.16`) hardcoded via their original provisioning. New nodes provisioned during the upgrade inherited the VNet-level DNS server setting, which included the broken `192.168.0.1` address.
+
+**The VNet DNS config:**
+
+```bash
+az network vnet show \
+  --resource-group MC_rg-production_aks-production_westus2 \
+  --name aks-vnet-production \
+  --query "dhcpOptions.dnsServers"
+```
+
+```json
+["192.168.0.1", "168.63.129.16"]
+```
+
+The decommissioned DNS forwarder (`192.168.0.1`) was listed first. DHCP assigns DNS servers in order. New nodes configured via DHCP picked up `192.168.0.1` as their primary nameserver. `168.63.129.16` was listed as secondary — but `systemd-resolved` uses only the primary unless it fails with SERVFAIL, and `192.168.0.1` wasn't returning SERVFAIL (the host was unreachable, causing a timeout, not a rejection). So `systemd-resolved` timed out rather than falling back.
+
+---
+
+## The Fix
+
+**Step 1 — Remove the decommissioned DNS server from the VNet:**
+
+```bash
+az network vnet update \
+  --resource-group MC_rg-production_aks-production_westus2 \
+  --name aks-vnet-production \
+  --dns-servers 168.63.129.16
+```
+
+This was the permanent fix. All future nodes provisioned from this VNet will receive Azure DNS only.
+
+**Step 2 — Repair affected nodes without re-provisioning:**
+
+Affected nodes couldn't be quickly re-provisioned, so we repaired `systemd-resolved` in place:
+
+```bash
+# For each affected node, open a privileged shell
+kubectl debug node/aks-nodepool1-45821003-vmss000045 \
+  -it --image=mcr.microsoft.com/cbl-mariner/busybox:2.0 \
+  -- chroot /host bash
+
+# Overwrite systemd-resolved upstream config
+mkdir -p /etc/systemd/resolved.conf.d
+cat <<EOF > /etc/systemd/resolved.conf.d/azure-dns.conf
+[Resolve]
+DNS=168.63.129.16
+Domains=~.
+EOF
+
+# Restart systemd-resolved
+systemctl restart systemd-resolved
+
+# Verify
+cat /run/systemd/resolve/resolv.conf
+# nameserver 168.63.129.16
+```
+
+**Step 3 — Restart CoreDNS pods on the fixed nodes to pick up the new resolver config:**
+
+The Corefile uses `forward . /etc/resolv.conf` with the `reload` plugin, but `reload` watches the Corefile for changes — it does not re-read the forwarding target file (`/etc/resolv.conf`). We needed to restart the CoreDNS pod on the affected node:
+
+```bash
+# Delete the CoreDNS pod on the affected node — it will be rescheduled
+kubectl delete pod -n kube-system coredns-65d7c4b75-4xnkq
+```
+
+After the restart, the new CoreDNS pod read the corrected `/etc/resolv.conf` and began forwarding to `168.63.129.16`.
+
+**Step 4 — Verify:**
+
+```bash
+kubectl exec -n payments dns-test-failing-node -- nslookup api.stripe.com
+# Name:   api.stripe.com
+# Address: 54.166.130.11 ✓
+```
+
+Full resolution restored. No pods required restart — the DNS query path was fixed at the CoreDNS layer.
+
+---
+
+## Identifying All Affected Nodes
+
+After fixing the immediate incident, we ran a cluster-wide audit to find all affected nodes:
+
+```bash
+# Check /run/systemd/resolve/resolv.conf on every node
+for node in $(kubectl get nodes -o name | sed 's|node/||'); do
+  echo -n "$node: "
+  kubectl debug node/$node -it --quiet \
+    --image=mcr.microsoft.com/cbl-mariner/busybox:2.0 \
+    -- chroot /host cat /run/systemd/resolve/resolv.conf 2>/dev/null | \
+    grep nameserver
+done
+```
+
+Output identified 3 of 8 nodes with the wrong nameserver. All three were nodes provisioned during the upgrade batch. We applied the same fix to all three.
+
+---
+
+## Preventive Monitoring
+
+### Prometheus Alert — CoreDNS Upstream Failure Rate
+
+```yaml
+groups:
+- name: coredns-dns-health
+  rules:
+  - alert: CoreDNSUpstreamForwardFailures
+    expr: |
+      rate(coredns_forward_request_failures_total[5m]) > 0.05
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "CoreDNS upstream forward failures on {{ $labels.to }}"
+      description: |
+        CoreDNS is failing to forward requests to upstream resolver {{ $labels.to }}.
+        Failure rate: {{ $value | humanizePercentage }}.
+        Check /etc/resolv.conf on nodes running CoreDNS pods.
+```
+
+This alert fires when the CoreDNS upstream forwarding failure rate exceeds 5% for 2 minutes — catching the failure before it becomes a full SERVFAIL cascade.
+
+### Prometheus Alert — CoreDNS SERVFAIL Rate
+
+```yaml
+  - alert: CoreDNSHighServfailRate
+    expr: |
+      rate(coredns_dns_responses_total{rcode="SERVFAIL"}[5m])
+      /
+      rate(coredns_dns_requests_total[5m]) > 0.01
+    for: 3m
+    labels:
+      severity: critical
+    annotations:
+      summary: "CoreDNS SERVFAIL rate above 1%"
+      description: |
+        More than 1% of DNS responses are SERVFAIL.
+        This typically indicates upstream forwarding failure.
+        Immediate investigation required.
+```
+
+### Synthetic DNS Health Check
+
+A lightweight CronJob that runs every 5 minutes across all nodes to verify external resolution is working:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dns-health-check
+  namespace: kube-system
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          tolerations:
+          - operator: Exists
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app: dns-health-check
+                topologyKey: kubernetes.io/hostname
+          containers:
+          - name: dns-check
+            image: busybox:1.36
+            command:
+            - sh
+            - -c
+            - |
+              if nslookup microsoft.com > /dev/null 2>&1; then
+                echo "DNS OK on $(hostname -f)"
+              else
+                echo "DNS FAIL on $(hostname -f): $(nslookup microsoft.com 2>&1)"
+                exit 1
+              fi
+          restartPolicy: Never
+```
+
+The `podAntiAffinity` with `topologyKey: kubernetes.io/hostname` ensures each CronJob execution tries to schedule one pod per node. If any node fails the DNS check, the job exits non-zero, which can trigger an alert via the `kube_job_failed` Prometheus metric.
+
+### Node-Level DNS Audit Script
+
+Add this to your cluster health runbook:
+
+```bash
+#!/bin/bash
+# audit-node-dns.sh — check DNS resolver config on all nodes
+EXPECTED_DNS="168.63.129.16"
+FAILED_NODES=()
+
+for node in $(kubectl get nodes -o name | sed 's|node/||'); do
+  ACTUAL=$(kubectl debug node/$node -it --quiet \
+    --image=mcr.microsoft.com/cbl-mariner/busybox:2.0 \
+    -- chroot /host sh -c "grep nameserver /run/systemd/resolve/resolv.conf | awk '{print \$2}' | head -1" 2>/dev/null)
+
+  if [ "$ACTUAL" != "$EXPECTED_DNS" ]; then
+    echo "FAIL: $node has nameserver $ACTUAL (expected $EXPECTED_DNS)"
+    FAILED_NODES+=("$node")
+  else
+    echo "OK:   $node has nameserver $ACTUAL"
+  fi
+done
+
+echo ""
+echo "Failed nodes: ${#FAILED_NODES[@]}"
+```
+
+Run this after every node pool upgrade as part of your post-upgrade verification checklist.
+
+---
+
+## Repeatable Troubleshooting Framework
+
+When you see asymmetric DNS failures in Kubernetes (some pods resolve, others don't):
+
+| Step | Command | What you're checking |
+|------|---------|----------------------|
+| 1. Confirm asymmetry | `kubectl get pods -o wide` + `nslookup` from each | Which nodes are affected |
+| 2. Test internal DNS | `nslookup kubernetes.default.svc.cluster.local` | Whether CoreDNS itself is up |
+| 3. Test upstream directly | `nslookup external.com <upstream-ip>` | Whether upstream resolver is reachable |
+| 4. Check CoreDNS logs | `kubectl logs -n kube-system <coredns-pod>` | Which upstream IP it's trying |
+| 5. Check CoreDNS resolv.conf | `kubectl exec <coredns-pod> -- cat /etc/resolv.conf` | What upstream IP CoreDNS is using |
+| 6. Check node resolv.conf | `kubectl debug node/<node> … cat /run/systemd/resolve/resolv.conf` | Source of the wrong upstream |
+| 7. Audit VNet DNS config | `az network vnet show --query dhcpOptions.dnsServers` | Where the wrong IP originated |
+
+---
+
+## Lessons Learned
+
+**1. Asymmetric DNS failures always point to a node-level difference.**
+
+If two pods with identical configs behave differently for DNS, the variable is the node. Don't spend time comparing pod configs — compare node configs.
+
+**2. CoreDNS "forward . /etc/resolv.conf" trusts the node completely.**
+
+The Corefile's `forward` directive with `/etc/resolv.conf` is a deliberate design choice — CoreDNS inherits whatever the node operator configured. This is correct behavior. The failure is when the node's resolver config is wrong, not when CoreDNS forwards to it.
+
+**3. Node pool upgrades provision new nodes from the current VMSS/VNet configuration.**
+
+Upgraded nodes are new VMs. They pick up whatever DNS server configuration the VNet currently advertises via DHCP. Any stale or incorrect VNet-level DNS server configuration that existed before the upgrade will be inherited by new nodes.
+
+**4. DHCP fallback doesn't save you when the primary DNS times out.**
+
+`192.168.0.1` was unreachable, not actively refusing connections. `systemd-resolved` waited for a timeout (several seconds) on each query attempt before considering fallback. In production, this manifested as slow DNS rather than immediate failure — which made the issue harder to detect during the upgrade window.
+
+**5. Audit VNet DNS config before every node pool upgrade.**
+
+Run `az network vnet show --query dhcpOptions.dnsServers` before upgrading. Remove any decommissioned DNS server IPs. This takes 30 seconds and prevents this entire class of failure.
+
+**6. Add CoreDNS upstream failure metrics to your cluster health dashboard.**
+
+`coredns_forward_request_failures_total` is a free metric already being scraped by every standard Prometheus installation. If it's not on your dashboard, add it. A rate above 1% for external queries is always worth an alert.
