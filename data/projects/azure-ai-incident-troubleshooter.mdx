@@ -1,0 +1,1853 @@
+---
+title: 'Azure AI Incident Troubleshooter'
+date: '2026-07-02'
+summary: 'A full-stack AI-powered incident management system that uses Azure OpenAI, Cosmos DB (11 containers, referenced entity model), and Azure AI Search to automatically analyse infrastructure incidents, surface root causes, and recommend remediation actions — built as an end-to-end instructional guide.'
+tags: ['Azure', 'AI', 'Cosmos DB', 'FastAPI', 'Next.js', 'Azure OpenAI', 'RAG', 'Incident Management']
+category: ai
+projectType: 'end-to-end'
+featured: true
+authors: ['NVN']
+draft: false
+coverImage: '/images/projects/azure-ai-incident-troubleshooter-cover.svg'
+---
+
+When an Azure service degrades at 2 AM, the on-call engineer needs answers faster than a Confluence search can provide them. This project builds an AI-powered incident management system that ingests raw incident data, retrieves relevant runbooks and past resolutions from a vector search index, and produces structured analysis with prioritised remediation steps — all without the engineer having to know which runbook to look at first.
+
+The guide is written for cloud engineers who are comfortable with Azure but new to building AI-driven applications. Every architectural decision is explained with an honest trade-off note. Where simpler alternatives exist, they are called out explicitly.
+
+---
+
+## The high-level architecture
+
+<DiagramImage
+  src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Azure_AI_RAG_ARch_prsznq"
+  alt="Azure AI Incident Troubleshooter high-level architecture: traffic enters through Azure Front Door, passes through API Management, reaches the FastAPI backend on AKS. The backend reads from Cosmos DB (11 containers) and Azure AI Search (runbook index), calls Azure OpenAI for embeddings and GPT-4o completions, and returns structured IncidentDetail responses to the Next.js frontend hosted on Azure Static Web Apps."
+  caption="High-level architecture: Front Door → APIM → FastAPI/AKS → Cosmos DB + AI Search + Azure OpenAI → Static Web Apps frontend."
+/>
+
+**Component decisions at a glance:**
+
+| Layer | Technology | Why this, not that |
+|-------|-----------|-------------------|
+| API | FastAPI on AKS | Async streaming, easy Pydantic validation; App Service would work too for lower ops overhead |
+| Database | Cosmos DB (NoSQL API) | Flexible schema for evolving incident fields; SQL DB is a valid alternative if you need joins |
+| Vector search | Azure AI Search | Hybrid BM25 + vector in one service; Postgres pgvector is simpler if you already run Postgres |
+| LLM | Azure OpenAI GPT-4o | Required for Azure compliance; use OpenAI directly if you're not in a regulated environment |
+| Frontend | Next.js on Static Web Apps | Static export + API routes; any React framework on App Service would work |
+| Auth | Entra ID + Managed Identity | No secrets in code; client credentials are acceptable for internal tools |
+
+---
+
+## Phase 1: Data flow and analysis pipeline
+
+Before writing code, understand what happens to an incident from the moment it is created to the moment the engineer sees a recommended action.
+
+<DiagramImage
+  src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Azure_Ai_-Data_Flow_bxzobu"
+  alt="Data flow and analysis pipeline with 8 stages: (1) Engineer submits incident via Next.js form — POST /incidents. (2) FastAPI validates the payload against IncidentCreate Pydantic model. (3) Incident record written to Cosmos DB incidents container. (4) RAG service embeds the incident description using text-embedding-3-small (1536-dim). (5) AI Search hybrid query (vector + BM25) returns top-5 runbook chunks. (6) GPT-4o prompt assembled: system instructions + incident metadata + retrieved runbook context. (7) GPT-4o returns structured JSON: AnalysisResult + list of RecommendedActions. (8) Results written to separate analysisResults and recommendedActions containers; composite IncidentDetail returned to frontend."
+  caption="8-stage data flow: incident submission → Pydantic validation → Cosmos write → embed → hybrid search → prompt assembly → GPT-4o → split write to analysisResults + recommendedActions."
+/>
+
+The critical design point is stage 8: analysis results and recommended actions are written to **separate Cosmos DB containers**, not embedded inside the incident document. The next section explains why.
+
+---
+
+## Phase 2: Prerequisites and environment setup
+
+You need the following Azure resources before writing any code. Provision them in this order — some services depend on others being ready first.
+
+```bash
+# Set your subscription and resource group
+SUBSCRIPTION_ID="your-subscription-id"
+RESOURCE_GROUP="rg-incident-troubleshooter"
+LOCATION="eastus"
+
+az account set --subscription $SUBSCRIPTION_ID
+az group create --name $RESOURCE_GROUP --location $LOCATION
+```
+
+**Provision Azure OpenAI:**
+
+```bash
+az cognitiveservices account create \
+  --name oai-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --kind OpenAI \
+  --sku S0
+
+# Deploy GPT-4o and text-embedding-3-small
+az cognitiveservices account deployment create \
+  --name oai-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --deployment-name gpt-4o \
+  --model-name gpt-4o \
+  --model-version "2024-11-20" \
+  --model-format OpenAI \
+  --sku-capacity 40 \
+  --sku-name Standard
+
+az cognitiveservices account deployment create \
+  --name oai-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --deployment-name text-embedding-3-small \
+  --model-name text-embedding-3-small \
+  --model-version "1" \
+  --model-format OpenAI \
+  --sku-capacity 120 \
+  --sku-name Standard
+```
+
+**Provision Cosmos DB:**
+
+```bash
+az cosmosdb create \
+  --name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --default-consistency-level Session \
+  --locations regionName=$LOCATION failoverPriority=0 isZoneRedundant=false
+
+az cosmosdb sql database create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --name IncidentDB
+```
+
+**Provision Azure AI Search:**
+
+```bash
+az search service create \
+  --name search-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --sku Basic
+
+# Note: Basic SKU supports vector search. Standard gives more replicas/partitions.
+# For a dev environment, Free SKU (az search service create --sku Free) works
+# but is limited to 3 indexes and no SLA.
+```
+
+**Provision Key Vault:**
+
+```bash
+az keyvault create \
+  --name kv-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --enable-soft-delete true \
+  --retention-days 90
+```
+
+---
+
+## Phase 3: Project structure
+
+```
+azure-ai-incident-troubleshooter/
+├── backend/
+│   ├── app/
+│   │   ├── main.py                # FastAPI app, middleware, lifespan
+│   │   ├── config.py              # Settings from Key Vault via DefaultAzureCredential
+│   │   ├── models/
+│   │   │   ├── incident.py        # Pydantic models for all 11 entities
+│   │   │   └── enums.py           # Severity, IncidentStatus enums
+│   │   ├── services/
+│   │   │   ├── cosmos_service.py  # Per-entity upsert methods, list_by_incident()
+│   │   │   ├── rag_service.py     # Embed + search + GPT-4o → (AnalysisResult, [RecommendedAction])
+│   │   │   └── search_service.py  # AI Search index management and hybrid query
+│   │   └── routes/
+│   │       └── incidents.py       # POST /incidents, GET /incidents/{id}, GET /incidents
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── app/
+│   │   ├── page.tsx               # Incident list
+│   │   └── incidents/
+│   │       ├── new/page.tsx       # Create incident form
+│   │       └── [id]/page.tsx      # IncidentDetail view with priority badges
+│   ├── components/
+│   │   ├── IncidentForm.tsx
+│   │   ├── IncidentCard.tsx
+│   │   └── RecommendedActionCard.tsx
+│   └── lib/
+│       └── api.ts                 # Typed fetch wrappers
+├── infra/
+│   ├── main.bicep
+│   ├── modules/
+│   │   ├── cosmos.bicep
+│   │   ├── openai.bicep
+│   │   ├── search.bicep
+│   │   └── aks.bicep
+│   └── parameters/
+│       ├── dev.bicepparam
+│       └── prod.bicepparam
+├── helm/
+│   ├── Chart.yaml
+│   └── templates/
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       └── ingress.yaml
+└── .github/
+    └── workflows/
+        ├── ci.yml
+        └── deploy.yml
+```
+
+---
+
+## Phase 4: Pydantic models — referenced entity design
+
+The original design embedded an `AIAnalysis` object inside the `Incident` document. This works when analysis results are small and stable, but it hits Cosmos DB's 2 MB document limit when incidents accumulate many log entries and recommended actions over time.
+
+The referenced design uses separate containers per entity. Each related entity stores an `incidentId` field and is retrieved via cross-container queries when building the composite response.
+
+```python
+# backend/app/models/enums.py
+from enum import Enum
+
+class Severity(str, Enum):
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+class IncidentStatus(str, Enum):
+    NEW = "New"
+    IN_PROGRESS = "InProgress"
+    RESOLVED = "Resolved"
+    CLOSED = "Closed"
+```
+
+```python
+# backend/app/models/incident.py
+from __future__ import annotations
+from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel, Field
+import uuid
+from .enums import Severity, IncidentStatus
+
+
+class User(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: str
+    displayName: str
+    role: str  # "engineer" | "manager" | "readonly"
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+
+
+class IncidentCreate(BaseModel):
+    title: str
+    description: str
+    severity: Severity
+    affectedService: str
+    affectedRegion: str
+    reportedBy: str  # user id
+
+
+class Incident(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: str
+    severity: Severity
+    status: IncidentStatus = IncidentStatus.NEW
+    affectedService: str
+    affectedRegion: str
+    reportedBy: str
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    updatedAt: datetime = Field(default_factory=datetime.utcnow)
+    resolvedAt: Optional[datetime] = None
+
+
+class IncidentLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    incidentId: str
+    message: str
+    logLevel: str  # "info" | "warning" | "error"
+    source: str    # e.g. "AKS node pool", "API Management"
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    createdBy: str  # user id
+
+
+class AnalysisResult(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    incidentId: str
+    rootCauseSummary: str
+    confidence: float  # 0.0 – 1.0; GPT-4o is instructed to express uncertainty
+    retrievedRunbooks: list[str]  # runbook IDs used as context
+    rawLlmResponse: str           # full GPT-4o output for audit trail
+    analysedAt: datetime = Field(default_factory=datetime.utcnow)
+    modelVersion: str = "gpt-4o-2024-11-20"
+
+
+class RecommendedAction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    incidentId: str
+    analysisResultId: str
+    priority: int   # 1 = highest; GPT-4o assigns 1–5
+    title: str
+    description: str
+    estimatedMinutes: Optional[int] = None
+    runbookReference: Optional[str] = None  # runbook ID if applicable
+    status: str = "pending"  # "pending" | "in_progress" | "done" | "skipped"
+
+
+class IncidentComponent(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    incidentId: str
+    componentName: str
+    componentType: str  # "AKS", "APIM", "CosmosDB", "OpenAI", etc.
+    isAffected: bool
+    notes: Optional[str] = None
+
+
+class Runbook(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    content: str          # full runbook text, chunked at index time
+    service: str          # "AKS" | "CosmosDB" | "OpenAI" | ...
+    tags: list[str] = []
+    version: str = "1.0"
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    updatedAt: datetime = Field(default_factory=datetime.utcnow)
+
+
+class IncidentRunbook(BaseModel):
+    """Junction entity: which runbooks were linked to which incident."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    incidentId: str
+    runbookId: str
+    linkedAt: datetime = Field(default_factory=datetime.utcnow)
+    linkedBy: str  # "ai" or user id
+
+
+class Feedback(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    incidentId: str
+    analysisResultId: str
+    rating: int  # 1–5; used to fine-tune prompt engineering over time
+    comment: Optional[str] = None
+    createdBy: str
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Tag(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str    # e.g. "networking", "storage", "authentication"
+    colour: str  # hex colour for UI badge
+
+
+class IncidentTag(BaseModel):
+    """Junction entity: many-to-many between incidents and tags."""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    incidentId: str
+    tagId: str
+
+
+# Composite response model — assembled from multiple containers
+class IncidentDetail(BaseModel):
+    incident: Incident
+    logs: list[IncidentLog] = []
+    analysisResult: Optional[AnalysisResult] = None
+    recommendedActions: list[RecommendedAction] = []
+    components: list[IncidentComponent] = []
+    linkedRunbooks: list[IncidentRunbook] = []
+    tags: list[Tag] = []
+    feedback: list[Feedback] = []
+```
+
+> **Honest trade-off:** Referenced entities are not idiomatic Cosmos DB. Cosmos DB is optimised for point reads on a single document with a known partition key. Cross-container reads (retrieving all `AnalysisResult` documents for an `incidentId`) require a query scan, which is slower and more expensive than a point read on an embedded document. The referenced design is justified here because: (1) recommended actions can number in the dozens per incident, (2) incident logs can be unbounded, and (3) feedback and runbook links need to be queryable independently. For incidents that will never exceed ~20 analysed items, the embedded design is simpler and cheaper.
+
+---
+
+## Phase 5: Configuration and secrets
+
+```python
+# backend/app/config.py
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+from pydantic_settings import BaseSettings
+import os
+
+
+class Settings(BaseSettings):
+    cosmos_endpoint: str = ""
+    cosmos_key: str = ""
+    cosmos_database: str = "IncidentDB"
+    openai_endpoint: str = ""
+    openai_api_key: str = ""
+    openai_embedding_deployment: str = "text-embedding-3-small"
+    openai_chat_deployment: str = "gpt-4o"
+    search_endpoint: str = ""
+    search_key: str = ""
+    search_index_name: str = "runbooks"
+    key_vault_url: str = ""
+
+    class Config:
+        env_file = ".env"
+
+
+def load_from_key_vault(settings: Settings) -> Settings:
+    """Load secrets from Key Vault when running in Azure (Managed Identity available)."""
+    if not settings.key_vault_url:
+        return settings
+
+    try:
+        credential = DefaultAzureCredential()
+        client = SecretClient(vault_url=settings.key_vault_url, credential=credential)
+
+        secrets = {
+            "cosmos-endpoint": "cosmos_endpoint",
+            "cosmos-key": "cosmos_key",
+            "openai-endpoint": "openai_endpoint",
+            "openai-api-key": "openai_api_key",
+            "search-endpoint": "search_endpoint",
+            "search-key": "search_key",
+        }
+
+        for secret_name, attr in secrets.items():
+            try:
+                value = client.get_secret(secret_name).value
+                object.__setattr__(settings, attr, value)
+            except Exception:
+                pass  # secret not present; environment variable takes precedence
+
+    except Exception:
+        # Managed Identity not available (local dev); use .env values
+        pass
+
+    return settings
+
+
+_settings: Settings | None = None
+
+
+def get_settings() -> Settings:
+    global _settings
+    if _settings is None:
+        _settings = load_from_key_vault(Settings())
+    return _settings
+```
+
+---
+
+## Phase 6: Cosmos DB — the logical data model
+
+<DiagramImage
+  src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Azure_Ai-Logical_Data_Model_vufjos"
+  alt="Logical data model for the Azure AI Incident Troubleshooter showing 10 entities and their relationships. Central entity: Incident (id, title, description, severity, status, affectedService, affectedRegion, reportedBy, timestamps). Connected entities: IncidentLog (many-to-one with Incident via incidentId), AnalysisResult (one-to-one with Incident via incidentId, includes rootCauseSummary + confidence + retrievedRunbooks), RecommendedAction (many-to-one with AnalysisResult and Incident via analysisResultId + incidentId, includes priority 1-5 + status), IncidentComponent (many-to-one with Incident), IncidentRunbook junction table (many-to-many between Incident and Runbook via incidentId + runbookId), Feedback (many-to-one with AnalysisResult via analysisResultId), IncidentTag junction table (many-to-many between Incident and Tag), User (referenced by Incident.reportedBy). Partition keys annotated: /incidentId for log/analysis/action/component/runbook/feedback/tag containers; /id for incidents/runbooks/tags/users containers."
+  caption="Logical data model: 11 Cosmos containers, referenced entities. Incident is the central aggregate; AnalysisResult and RecommendedAction are written after GPT-4o analysis; IncidentRunbook and IncidentTag are junction containers for many-to-many relationships."
+/>
+
+Create all 11 containers with appropriate partition keys:
+
+```bash
+# incidents — partition key /id (each incident is its own logical partition)
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name incidents \
+  --partition-key-path "/id" \
+  --throughput 400
+
+# incidentLogs — partition key /incidentId (all logs for one incident co-located)
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name incidentLogs \
+  --partition-key-path "/incidentId" \
+  --throughput 400
+
+# analysisResults — partition key /incidentId (one analysis per incident, quick lookup)
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name analysisResults \
+  --partition-key-path "/incidentId" \
+  --throughput 400
+
+# recommendedActions — partition key /incidentId (all actions for one incident together)
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name recommendedActions \
+  --partition-key-path "/incidentId" \
+  --throughput 400
+
+# incidentComponents — partition key /incidentId
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name incidentComponents \
+  --partition-key-path "/incidentId" \
+  --throughput 400
+
+# runbooks — partition key /id (point reads by runbook ID)
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name runbooks \
+  --partition-key-path "/id" \
+  --throughput 400
+
+# incidentRunbooks — junction; partition key /incidentId
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name incidentRunbooks \
+  --partition-key-path "/incidentId" \
+  --throughput 400
+
+# feedback — partition key /incidentId
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name feedback \
+  --partition-key-path "/incidentId" \
+  --throughput 400
+
+# tags — partition key /id
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name tags \
+  --partition-key-path "/id" \
+  --throughput 400
+
+# incidentTags — junction; partition key /incidentId
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name incidentTags \
+  --partition-key-path "/incidentId" \
+  --throughput 400
+
+# users — partition key /id
+az cosmosdb sql container create \
+  --account-name cosmos-incident-prod \
+  --resource-group $RESOURCE_GROUP \
+  --database-name IncidentDB \
+  --name users \
+  --partition-key-path "/id" \
+  --throughput 400
+```
+
+**Partition key rationale:**
+
+- Containers where you query "all items for an incident" (`incidentLogs`, `analysisResults`, `recommendedActions`, `incidentComponents`, `incidentRunbooks`, `feedback`, `incidentTags`) use `/incidentId`. This means all related documents land in the same logical partition — a single cross-document query within one partition is efficient and predictable.
+- Containers that are looked up by their own ID (`incidents`, `runbooks`, `tags`, `users`) use `/id`. These are point reads: you know the ID, you pay for exactly one RU fetch.
+- The only expensive operation in this design is building the `IncidentDetail` composite: it fires one query per related container (8 queries). At 400 RU/s per container, this is fine for low-volume incident management. At high volume, consider pre-materialising the composite into a read-optimised container using a Change Feed trigger.
+
+---
+
+## Phase 7: Cosmos DB service layer
+
+```python
+# backend/app/services/cosmos_service.py
+from azure.cosmos.aio import CosmosClient
+from azure.cosmos import exceptions as cosmos_exceptions
+from typing import Any, Optional
+from ..config import get_settings
+from ..models.incident import (
+    Incident, IncidentLog, AnalysisResult, RecommendedAction,
+    IncidentComponent, IncidentRunbook, Feedback, Tag, IncidentTag,
+    User, Runbook
+)
+
+# Container name → partition key field
+CONTAINER_PARTITION_KEYS: dict[str, str] = {
+    "incidents": "id",
+    "incidentLogs": "incidentId",
+    "analysisResults": "incidentId",
+    "recommendedActions": "incidentId",
+    "incidentComponents": "incidentId",
+    "runbooks": "id",
+    "incidentRunbooks": "incidentId",
+    "feedback": "incidentId",
+    "tags": "id",
+    "incidentTags": "incidentId",
+    "users": "id",
+}
+
+
+class CosmosService:
+    def __init__(self):
+        settings = get_settings()
+        self._client = CosmosClient(settings.cosmos_endpoint, settings.cosmos_key)
+        self._database_name = settings.cosmos_database
+        self._db = None
+
+    async def _get_container(self, container_name: str):
+        if self._db is None:
+            self._db = self._client.get_database_client(self._database_name)
+        return self._db.get_container_client(container_name)
+
+    async def upsert(self, container_name: str, item: Any) -> dict:
+        """Upsert a Pydantic model into the named container."""
+        container = await self._get_container(container_name)
+        doc = item.model_dump(mode="json")
+        return await container.upsert_item(doc)
+
+    async def get_by_id(self, container_name: str, item_id: str, partition_key: str) -> Optional[dict]:
+        try:
+            container = await self._get_container(container_name)
+            return await container.read_item(item=item_id, partition_key=partition_key)
+        except cosmos_exceptions.CosmosResourceNotFoundError:
+            return None
+
+    async def list_by_incident(self, container_name: str, incident_id: str) -> list[dict]:
+        """Return all documents in container_name where incidentId = incident_id."""
+        container = await self._get_container(container_name)
+        query = "SELECT * FROM c WHERE c.incidentId = @incidentId"
+        parameters = [{"name": "@incidentId", "value": incident_id}]
+        items = []
+        async for item in container.query_items(
+            query=query,
+            parameters=parameters,
+            partition_key=incident_id,
+        ):
+            items.append(item)
+        return items
+
+    async def list_all(self, container_name: str, max_items: int = 100) -> list[dict]:
+        """Scan all documents in a container — use sparingly (full partition scan)."""
+        container = await self._get_container(container_name)
+        items = []
+        async for item in container.query_items(
+            query="SELECT * FROM c ORDER BY c._ts DESC OFFSET 0 LIMIT @limit",
+            parameters=[{"name": "@limit", "value": max_items}],
+            enable_cross_partition_query=True,
+        ):
+            items.append(item)
+        return items
+
+    async def upsert_incident(self, incident: Incident) -> dict:
+        return await self.upsert("incidents", incident)
+
+    async def upsert_log(self, log: IncidentLog) -> dict:
+        return await self.upsert("incidentLogs", log)
+
+    async def upsert_analysis(self, result: AnalysisResult) -> dict:
+        return await self.upsert("analysisResults", result)
+
+    async def upsert_actions(self, actions: list[RecommendedAction]) -> list[dict]:
+        return [await self.upsert("recommendedActions", a) for a in actions]
+
+    async def upsert_component(self, component: IncidentComponent) -> dict:
+        return await self.upsert("incidentComponents", component)
+
+    async def upsert_runbook_link(self, link: IncidentRunbook) -> dict:
+        return await self.upsert("incidentRunbooks", link)
+
+    async def upsert_feedback(self, fb: Feedback) -> dict:
+        return await self.upsert("feedback", fb)
+
+    async def upsert_tag(self, tag: Tag) -> dict:
+        return await self.upsert("tags", tag)
+
+    async def upsert_incident_tag(self, it: IncidentTag) -> dict:
+        return await self.upsert("incidentTags", it)
+
+    async def close(self):
+        await self._client.close()
+```
+
+---
+
+## Phase 8: Azure AI Search — runbook index
+
+Before the RAG pipeline can retrieve runbooks, you need to create the search index and populate it with chunked runbook content.
+
+```python
+# backend/app/services/search_service.py
+from azure.search.documents.aio import SearchClient
+from azure.search.documents.indexes.aio import SearchIndexClient
+from azure.search.documents.indexes.models import (
+    SearchIndex, SimpleField, SearchableField, SearchFieldDataType,
+    VectorSearch, HnswAlgorithmConfiguration, VectorSearchProfile,
+    SearchField, VectorSearchAlgorithmKind,
+)
+from azure.core.credentials import AzureKeyCredential
+from ..config import get_settings
+
+
+VECTOR_DIMENSIONS = 1536  # text-embedding-3-small output dimensions
+
+
+async def create_runbook_index() -> None:
+    """Create the runbooks vector search index if it does not already exist."""
+    settings = get_settings()
+    credential = AzureKeyCredential(settings.search_key)
+    async with SearchIndexClient(settings.search_endpoint, credential) as client:
+        fields = [
+            SimpleField(name="id", type=SearchFieldDataType.String, key=True),
+            SearchableField(name="title", type=SearchFieldDataType.String),
+            SearchableField(name="content", type=SearchFieldDataType.String),
+            SimpleField(name="service", type=SearchFieldDataType.String, filterable=True),
+            SimpleField(name="runbookId", type=SearchFieldDataType.String),
+            SearchField(
+                name="contentVector",
+                type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
+                searchable=True,
+                vector_search_dimensions=VECTOR_DIMENSIONS,
+                vector_search_profile_name="hnswProfile",
+            ),
+        ]
+
+        vector_search = VectorSearch(
+            algorithms=[HnswAlgorithmConfiguration(name="hnswConfig")],
+            profiles=[VectorSearchProfile(name="hnswProfile", algorithm_configuration_name="hnswConfig")],
+        )
+
+        index = SearchIndex(
+            name=settings.search_index_name,
+            fields=fields,
+            vector_search=vector_search,
+        )
+
+        await client.create_or_update_index(index)
+
+
+async def search_runbooks(query: str, query_vector: list[float], top: int = 5) -> list[dict]:
+    """Hybrid search: BM25 keyword + vector similarity, return top-k results."""
+    settings = get_settings()
+    from azure.search.documents.models import VectorizedQuery
+    credential = AzureKeyCredential(settings.search_key)
+    async with SearchClient(settings.search_endpoint, settings.search_index_name, credential) as client:
+        vector_query = VectorizedQuery(
+            vector=query_vector,
+            k_nearest_neighbors=top,
+            fields="contentVector",
+        )
+        results = await client.search(
+            search_text=query,
+            vector_queries=[vector_query],
+            select=["id", "title", "content", "service", "runbookId"],
+            top=top,
+        )
+        return [r async for r in results]
+```
+
+**Index a runbook** (call this after provisioning the index, for each runbook in your library):
+
+```python
+async def index_runbook_chunks(runbook_id: str, title: str, content: str, service: str) -> None:
+    """Chunk a runbook and upload all chunks to AI Search."""
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+    settings = get_settings()
+    from openai import AsyncAzureOpenAI
+
+    openai_client = AsyncAzureOpenAI(
+        azure_endpoint=settings.openai_endpoint,
+        api_key=settings.openai_api_key,
+        api_version="2024-02-01",
+    )
+
+    splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=64)
+    chunks = splitter.split_text(content)
+
+    documents = []
+    for i, chunk in enumerate(chunks):
+        embedding_response = await openai_client.embeddings.create(
+            model=settings.openai_embedding_deployment,
+            input=chunk,
+        )
+        embedding = embedding_response.data[0].embedding
+
+        documents.append({
+            "id": f"{runbook_id}-chunk-{i}",
+            "title": title,
+            "content": chunk,
+            "service": service,
+            "runbookId": runbook_id,
+            "contentVector": embedding,
+        })
+
+    credential = AzureKeyCredential(settings.search_key)
+    async with SearchClient(settings.search_endpoint, settings.search_index_name, credential) as client:
+        await client.upload_documents(documents)
+```
+
+---
+
+## Phase 9: RAG service — analysis pipeline
+
+### The RAG pipeline as a diagram
+
+<DiagramImage
+  src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Azure_AI_Incident_Troubleshoot_fuuh13"
+  alt="Detailed RAG pipeline with 6 stages: (1) Incident input — title + description + severity + affectedService passed to RAG service. (2) Embed — text-embedding-3-small converts concatenated incident text to 1536-dimensional float vector. (3) Hybrid search — VectorizedQuery + BM25 keyword search on AI Search runbooks index; top-5 chunks returned with score and source runbook ID. (4) Prompt assembly — system prompt (role + uncertainty instructions) + incident metadata block + retrieved context blocks (one per chunk) assembled into messages array. (5) GPT-4o completion — model returns structured JSON with rootCauseSummary, confidence (0.0-1.0), and recommendedActions array (each with priority 1-5, title, description, estimatedMinutes, runbookReference). (6) Parse and split — response parsed; AnalysisResult written to analysisResults container; each RecommendedAction written to recommendedActions container with shared incidentId and analysisResultId."
+  caption="RAG pipeline: embed → hybrid search → prompt assembly → GPT-4o → parse → split write to two Cosmos containers."
+/>
+
+```python
+# backend/app/services/rag_service.py
+import json
+from openai import AsyncAzureOpenAI
+from ..config import get_settings
+from ..models.incident import Incident, AnalysisResult, RecommendedAction
+from .search_service import search_runbooks
+import uuid
+from datetime import datetime
+
+
+SYSTEM_PROMPT = """You are an Azure infrastructure incident analyst.
+Given an incident description and relevant runbook excerpts, analyse the most likely root cause
+and recommend prioritised remediation steps.
+
+Rules:
+- If you are uncertain, say so explicitly. Do not fabricate root causes.
+- Express your confidence as a float between 0.0 and 1.0.
+- List recommended actions in order of priority (1 = highest).
+- If a runbook excerpt directly addresses the issue, reference its runbook ID in the action.
+- Return ONLY valid JSON — no markdown, no prose outside the JSON.
+
+JSON schema:
+{
+  "rootCauseSummary": "string",
+  "confidence": 0.0,
+  "recommendedActions": [
+    {
+      "priority": 1,
+      "title": "string",
+      "description": "string",
+      "estimatedMinutes": null,
+      "runbookReference": null
+    }
+  ]
+}"""
+
+
+async def analyse_incident(
+    incident: Incident,
+    openai_client: AsyncAzureOpenAI,
+) -> tuple[AnalysisResult, list[RecommendedAction]]:
+    """
+    Embed the incident, retrieve top runbook chunks, call GPT-4o, and return
+    (AnalysisResult, list[RecommendedAction]). Raises ValueError if GPT-4o
+    returns malformed JSON or if the confidence field is missing.
+    """
+    settings = get_settings()
+
+    # 1. Embed the incident description
+    incident_text = f"{incident.title}\n\n{incident.description}\nAffected service: {incident.affectedService}\nSeverity: {incident.severity}"
+    embedding_response = await openai_client.embeddings.create(
+        model=settings.openai_embedding_deployment,
+        input=incident_text,
+    )
+    query_vector = embedding_response.data[0].embedding
+
+    # 2. Hybrid search — retrieve top-5 runbook chunks
+    search_results = await search_runbooks(
+        query=incident_text,
+        query_vector=query_vector,
+        top=5,
+    )
+
+    retrieved_runbook_ids = list({r["runbookId"] for r in search_results})
+
+    # 3. Assemble prompt
+    context_blocks = []
+    for r in search_results:
+        context_blocks.append(
+            f"[Runbook: {r['title']} | Service: {r['service']} | ID: {r['runbookId']}]\n{r['content']}"
+        )
+    context_text = "\n\n---\n\n".join(context_blocks)
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": (
+                f"## Incident\n"
+                f"Title: {incident.title}\n"
+                f"Severity: {incident.severity}\n"
+                f"Affected service: {incident.affectedService}\n"
+                f"Affected region: {incident.affectedRegion}\n"
+                f"Description:\n{incident.description}\n\n"
+                f"## Retrieved runbook context\n{context_text}"
+            ),
+        },
+    ]
+
+    # 4. Call GPT-4o
+    completion = await openai_client.chat.completions.create(
+        model=settings.openai_chat_deployment,
+        messages=messages,
+        temperature=0,
+        response_format={"type": "json_object"},
+    )
+    raw_response = completion.choices[0].message.content
+
+    # 5. Parse response
+    try:
+        parsed = json.loads(raw_response)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"GPT-4o returned invalid JSON: {e}\nRaw: {raw_response[:500]}")
+
+    if "confidence" not in parsed or "rootCauseSummary" not in parsed:
+        raise ValueError(f"GPT-4o response missing required fields. Raw: {raw_response[:500]}")
+
+    analysis_id = str(uuid.uuid4())
+
+    analysis_result = AnalysisResult(
+        id=analysis_id,
+        incidentId=incident.id,
+        rootCauseSummary=parsed["rootCauseSummary"],
+        confidence=float(parsed["confidence"]),
+        retrievedRunbooks=retrieved_runbook_ids,
+        rawLlmResponse=raw_response,
+        analysedAt=datetime.utcnow(),
+    )
+
+    recommended_actions = []
+    for action_data in parsed.get("recommendedActions", []):
+        recommended_actions.append(
+            RecommendedAction(
+                incidentId=incident.id,
+                analysisResultId=analysis_id,
+                priority=int(action_data.get("priority", 99)),
+                title=action_data.get("title", "Unnamed action"),
+                description=action_data.get("description", ""),
+                estimatedMinutes=action_data.get("estimatedMinutes"),
+                runbookReference=action_data.get("runbookReference"),
+            )
+        )
+
+    # Sort by priority ascending (1 = most urgent)
+    recommended_actions.sort(key=lambda a: a.priority)
+
+    return analysis_result, recommended_actions
+```
+
+---
+
+## Phase 10: FastAPI application and incidents route
+
+```python
+# backend/app/main.py
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from openai import AsyncAzureOpenAI
+from .config import get_settings
+from .services.cosmos_service import CosmosService
+from .services.search_service import create_runbook_index
+from .routes import incidents
+
+cosmos_service: CosmosService | None = None
+openai_client: AsyncAzureOpenAI | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global cosmos_service, openai_client
+    settings = get_settings()
+
+    cosmos_service = CosmosService()
+    openai_client = AsyncAzureOpenAI(
+        azure_endpoint=settings.openai_endpoint,
+        api_key=settings.openai_api_key,
+        api_version="2024-02-01",
+    )
+
+    # Ensure AI Search index exists (idempotent)
+    await create_runbook_index()
+
+    yield
+
+    if cosmos_service:
+        await cosmos_service.close()
+    if openai_client:
+        await openai_client.close()
+
+
+app = FastAPI(
+    title="Azure AI Incident Troubleshooter API",
+    version="2.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://your-frontend.azurestaticapps.net"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(incidents.router, prefix="/incidents", tags=["incidents"])
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "version": "2.0.0"}
+```
+
+```python
+# backend/app/routes/incidents.py
+from fastapi import APIRouter, HTTPException, Request
+from ..models.incident import (
+    IncidentCreate, Incident, IncidentDetail,
+    AnalysisResult, RecommendedAction
+)
+from ..services.rag_service import analyse_incident
+import main as app_module
+
+router = APIRouter()
+
+
+def _get_cosmos():
+    if app_module.cosmos_service is None:
+        raise HTTPException(503, "Cosmos service not initialised")
+    return app_module.cosmos_service
+
+
+def _get_openai():
+    if app_module.openai_client is None:
+        raise HTTPException(503, "OpenAI client not initialised")
+    return app_module.openai_client
+
+
+@router.post("/", response_model=IncidentDetail, status_code=201)
+async def create_incident(payload: IncidentCreate):
+    """
+    Create an incident, run AI analysis, write results to three containers
+    (incidents, analysisResults, recommendedActions), and return IncidentDetail.
+    """
+    cosmos = _get_cosmos()
+    openai = _get_openai()
+
+    # Write incident
+    incident = Incident(**payload.model_dump())
+    await cosmos.upsert_incident(incident)
+
+    # Run AI analysis — may raise ValueError if GPT-4o response is malformed
+    try:
+        analysis_result, recommended_actions = await analyse_incident(incident, openai)
+    except ValueError as e:
+        # Analysis failed — return the incident with empty analysis rather than 500
+        return IncidentDetail(incident=incident)
+
+    # Write analysis and actions to separate containers
+    await cosmos.upsert_analysis(analysis_result)
+    await cosmos.upsert_actions(recommended_actions)
+
+    return IncidentDetail(
+        incident=incident,
+        analysisResult=analysis_result,
+        recommendedActions=recommended_actions,
+    )
+
+
+@router.get("/{incident_id}", response_model=IncidentDetail)
+async def get_incident(incident_id: str):
+    """
+    Fetch the composite IncidentDetail by assembling from multiple containers.
+    Fires 1 point read (incidents) + up to 7 queries (related containers).
+    """
+    cosmos = _get_cosmos()
+
+    # Point read for the incident itself
+    incident_doc = await cosmos.get_by_id("incidents", incident_id, partition_key=incident_id)
+    if not incident_doc:
+        raise HTTPException(404, f"Incident {incident_id} not found")
+
+    incident = Incident(**incident_doc)
+
+    # Parallel reads across related containers
+    import asyncio
+    logs_docs, analysis_docs, action_docs, component_docs, link_docs, feedback_docs, tag_link_docs = \
+        await asyncio.gather(
+            cosmos.list_by_incident("incidentLogs", incident_id),
+            cosmos.list_by_incident("analysisResults", incident_id),
+            cosmos.list_by_incident("recommendedActions", incident_id),
+            cosmos.list_by_incident("incidentComponents", incident_id),
+            cosmos.list_by_incident("incidentRunbooks", incident_id),
+            cosmos.list_by_incident("feedback", incident_id),
+            cosmos.list_by_incident("incidentTags", incident_id),
+        )
+
+    from ..models.incident import (
+        IncidentLog, IncidentComponent, IncidentRunbook, Feedback, IncidentTag, Tag
+    )
+
+    analysis_result = None
+    if analysis_docs:
+        analysis_result = AnalysisResult(**analysis_docs[0])
+
+    # Resolve tags from incidentTags junction
+    tags = []
+    for it_doc in tag_link_docs:
+        tag_doc = await cosmos.get_by_id("tags", it_doc["tagId"], partition_key=it_doc["tagId"])
+        if tag_doc:
+            tags.append(Tag(**tag_doc))
+
+    return IncidentDetail(
+        incident=incident,
+        logs=[IncidentLog(**d) for d in logs_docs],
+        analysisResult=analysis_result,
+        recommendedActions=sorted(
+            [RecommendedAction(**d) for d in action_docs],
+            key=lambda a: a.priority,
+        ),
+        components=[IncidentComponent(**d) for d in component_docs],
+        linkedRunbooks=[IncidentRunbook(**d) for d in link_docs],
+        tags=tags,
+        feedback=[Feedback(**d) for d in feedback_docs],
+    )
+
+
+@router.get("/", response_model=list[Incident])
+async def list_incidents():
+    """Return the 100 most recent incidents (cross-partition scan — avoid in hot paths)."""
+    cosmos = _get_cosmos()
+    docs = await cosmos.list_all("incidents", max_items=100)
+    return [Incident(**d) for d in docs]
+```
+
+---
+
+## Phase 11: Backend requirements and Dockerfile
+
+```text
+# backend/requirements.txt
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.2
+pydantic-settings==2.5.2
+azure-cosmos==4.7.0
+azure-search-documents==11.6.0
+azure-identity==1.19.0
+azure-keyvault-secrets==4.9.0
+openai==1.55.3
+langchain-text-splitters==0.3.0
+```
+
+```dockerfile
+# backend/Dockerfile
+FROM python:3.12-slim AS builder
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+FROM python:3.12-slim
+WORKDIR /app
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY app/ ./app/
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+---
+
+## Phase 12: Next.js frontend
+
+### Incident list page
+
+```typescript
+// frontend/app/page.tsx
+import Link from 'next/link'
+import { getIncidents } from '@/lib/api'
+import IncidentCard from '@/components/IncidentCard'
+
+export default async function IncidentsPage() {
+  const incidents = await getIncidents()
+
+  return (
+    <main className="max-w-4xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Incident Dashboard
+        </h1>
+        <Link
+          href="/incidents/new"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          + New Incident
+        </Link>
+      </div>
+
+      {incidents.length === 0 ? (
+        <p className="text-gray-500 dark:text-gray-400">No incidents reported yet.</p>
+      ) : (
+        <div className="space-y-4">
+          {incidents.map((incident) => (
+            <IncidentCard key={incident.id} incident={incident} />
+          ))}
+        </div>
+      )}
+    </main>
+  )
+}
+```
+
+### IncidentDetail page — recommended actions with priority badges
+
+```typescript
+// frontend/app/incidents/[id]/page.tsx
+import { notFound } from 'next/navigation'
+import { getIncidentDetail } from '@/lib/api'
+import type { IncidentDetail, RecommendedAction } from '@/lib/types'
+
+interface Props {
+  params: Promise<{ id: string }>
+}
+
+const priorityConfig: Record<number, { label: string; colour: string }> = {
+  1: { label: 'P1 — Critical', colour: 'bg-red-100 text-red-800 border-red-200' },
+  2: { label: 'P2 — High',     colour: 'bg-orange-100 text-orange-800 border-orange-200' },
+  3: { label: 'P3 — Medium',   colour: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  4: { label: 'P4 — Low',      colour: 'bg-blue-100 text-blue-800 border-blue-200' },
+  5: { label: 'P5 — Backlog',  colour: 'bg-gray-100 text-gray-600 border-gray-200' },
+}
+
+function PriorityBadge({ priority }: { priority: number }) {
+  const config = priorityConfig[priority] ?? priorityConfig[5]
+  return (
+    <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded border ${config.colour}`}>
+      {config.label}
+    </span>
+  )
+}
+
+function ActionCard({ action }: { action: RecommendedAction }) {
+  return (
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+      <div className="flex items-start gap-3">
+        <PriorityBadge priority={action.priority} />
+        {action.estimatedMinutes && (
+          <span className="text-xs text-gray-500 mt-0.5">{action.estimatedMinutes} min</span>
+        )}
+      </div>
+      <h3 className="font-semibold text-gray-900 dark:text-white mt-2">{action.title}</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{action.description}</p>
+      {action.runbookReference && (
+        <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+          Runbook: {action.runbookReference}
+        </p>
+      )}
+    </div>
+  )
+}
+
+const severityColours: Record<string, string> = {
+  critical: 'bg-red-100 text-red-800',
+  high:     'bg-orange-100 text-orange-800',
+  medium:   'bg-yellow-100 text-yellow-800',
+  low:      'bg-blue-100 text-blue-800',
+}
+
+export default async function IncidentDetailPage({ params }: Props) {
+  const { id } = await params
+  const detail = await getIncidentDetail(id)
+
+  if (!detail) notFound()
+
+  const { incident, analysisResult, recommendedActions, logs, tags } = detail
+
+  return (
+    <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <span className={`text-xs font-bold px-2 py-0.5 rounded uppercase ${severityColours[incident.severity] ?? 'bg-gray-100 text-gray-700'}`}>
+            {incident.severity}
+          </span>
+          <span className="text-xs text-gray-500">{incident.status}</span>
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{incident.title}</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          {incident.affectedService} · {incident.affectedRegion}
+        </p>
+        {tags.length > 0 && (
+          <div className="flex gap-2 mt-2">
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                className="text-xs px-2 py-0.5 rounded-full border"
+                style={{ borderColor: tag.colour, color: tag.colour }}
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Description */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Description</h2>
+        <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{incident.description}</p>
+      </section>
+
+      {/* AI Analysis */}
+      {analysisResult ? (
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">AI Analysis</h2>
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <p className="text-gray-800 dark:text-gray-100">{analysisResult.rootCauseSummary}</p>
+            <p className="text-xs text-gray-500 mt-2">
+              Confidence: {Math.round(analysisResult.confidence * 100)}% ·{' '}
+              Model: {analysisResult.modelVersion}
+            </p>
+            {analysisResult.confidence < 0.6 && (
+              <p className="text-xs text-amber-600 mt-1">
+                Low confidence — manual investigation recommended before acting on these recommendations.
+              </p>
+            )}
+          </div>
+        </section>
+      ) : (
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">AI Analysis</h2>
+          <p className="text-gray-500">Analysis not yet available for this incident.</p>
+        </section>
+      )}
+
+      {/* Recommended Actions */}
+      {recommendedActions.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+            Recommended Actions ({recommendedActions.length})
+          </h2>
+          <div className="space-y-3">
+            {recommendedActions.map((action) => (
+              <ActionCard key={action.id} action={action} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Recent Logs */}
+      {logs.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+            Incident Logs ({logs.length})
+          </h2>
+          <div className="space-y-2 font-mono text-xs">
+            {logs.slice(0, 20).map((log) => (
+              <div key={log.id} className="flex gap-3 text-gray-600 dark:text-gray-300">
+                <span className="text-gray-400 shrink-0">
+                  {new Date(log.timestamp).toISOString().slice(11, 19)}
+                </span>
+                <span className={
+                  log.logLevel === 'error' ? 'text-red-500' :
+                  log.logLevel === 'warning' ? 'text-amber-500' : 'text-gray-500'
+                }>
+                  [{log.logLevel.toUpperCase()}]
+                </span>
+                <span>[{log.source}]</span>
+                <span>{log.message}</span>
+              </div>
+            ))}
+            {logs.length > 20 && (
+              <p className="text-gray-400">{logs.length - 20} more log entries not shown.</p>
+            )}
+          </div>
+        </section>
+      )}
+    </main>
+  )
+}
+```
+
+### API types
+
+```typescript
+// frontend/lib/types.ts
+export interface Incident {
+  id: string
+  title: string
+  description: string
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  status: 'New' | 'InProgress' | 'Resolved' | 'Closed'
+  affectedService: string
+  affectedRegion: string
+  reportedBy: string
+  createdAt: string
+  updatedAt: string
+  resolvedAt?: string
+}
+
+export interface AnalysisResult {
+  id: string
+  incidentId: string
+  rootCauseSummary: string
+  confidence: number
+  retrievedRunbooks: string[]
+  modelVersion: string
+  analysedAt: string
+}
+
+export interface RecommendedAction {
+  id: string
+  incidentId: string
+  analysisResultId: string
+  priority: number
+  title: string
+  description: string
+  estimatedMinutes?: number
+  runbookReference?: string
+  status: string
+}
+
+export interface IncidentLog {
+  id: string
+  incidentId: string
+  message: string
+  logLevel: 'info' | 'warning' | 'error'
+  source: string
+  timestamp: string
+}
+
+export interface Tag {
+  id: string
+  name: string
+  colour: string
+}
+
+export interface IncidentDetail {
+  incident: Incident
+  logs: IncidentLog[]
+  analysisResult?: AnalysisResult
+  recommendedActions: RecommendedAction[]
+  components: unknown[]
+  linkedRunbooks: unknown[]
+  tags: Tag[]
+  feedback: unknown[]
+}
+```
+
+```typescript
+// frontend/lib/api.ts
+import type { Incident, IncidentDetail } from './types'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
+export async function getIncidents(): Promise<Incident[]> {
+  const res = await fetch(`${API_URL}/incidents/`, {
+    next: { revalidate: 30 },
+  })
+  if (!res.ok) return []
+  return res.json()
+}
+
+export async function getIncidentDetail(id: string): Promise<IncidentDetail | null> {
+  const res = await fetch(`${API_URL}/incidents/${id}`, {
+    next: { revalidate: 0 },
+  })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error(`Failed to fetch incident ${id}`)
+  return res.json()
+}
+
+export async function createIncident(payload: {
+  title: string
+  description: string
+  severity: string
+  affectedService: string
+  affectedRegion: string
+  reportedBy: string
+}): Promise<IncidentDetail> {
+  const res = await fetch(`${API_URL}/incidents/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const error = await res.text()
+    throw new Error(`Failed to create incident: ${error}`)
+  }
+  return res.json()
+}
+```
+
+---
+
+## Phase 13: Deployment architecture
+
+<DiagramImage
+  src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Azure_AI_Deployment_Arch_c1bwfw"
+  alt="Deployment architecture showing three environments (Dev, Staging, Prod) with identical structure. Each environment contains: Azure Static Web Apps (Next.js frontend) connected through Azure Front Door to Azure API Management, which routes to an AKS cluster running the FastAPI backend pods. AKS uses Workload Identity to authenticate to Azure OpenAI, Azure AI Search, Cosmos DB, and Key Vault — no client secrets anywhere. CI/CD: GitHub Actions builds the Docker image, pushes to Azure Container Registry (ACR), then deploys to AKS via Helm. Staging has a manual approval gate before Prod deploy. Prod environment adds zone-redundant Cosmos DB and Standard-tier AI Search with replicas."
+  caption="Three-environment deployment: Dev → Staging (manual approve gate) → Prod. Workload Identity replaces all client secrets. AKS → ACR → Helm release per environment."
+/>
+
+### Workload Identity setup
+
+```bash
+# 1. Enable OIDC issuer on AKS cluster
+az aks update \
+  --resource-group $RESOURCE_GROUP \
+  --name aks-incident-prod \
+  --enable-oidc-issuer \
+  --enable-workload-identity
+
+# 2. Get the OIDC issuer URL
+OIDC_ISSUER=$(az aks show \
+  --resource-group $RESOURCE_GROUP \
+  --name aks-incident-prod \
+  --query "oidcIssuerProfile.issuerUrl" -o tsv)
+
+# 3. Create a Managed Identity for the backend pod
+az identity create \
+  --name id-incident-backend \
+  --resource-group $RESOURCE_GROUP
+
+MI_CLIENT_ID=$(az identity show \
+  --name id-incident-backend \
+  --resource-group $RESOURCE_GROUP \
+  --query clientId -o tsv)
+
+MI_PRINCIPAL_ID=$(az identity show \
+  --name id-incident-backend \
+  --resource-group $RESOURCE_GROUP \
+  --query principalId -o tsv)
+
+# 4. Create federated credential — binds AKS service account to Managed Identity
+az identity federated-credential create \
+  --name fc-incident-backend \
+  --identity-name id-incident-backend \
+  --resource-group $RESOURCE_GROUP \
+  --issuer $OIDC_ISSUER \
+  --subject "system:serviceaccount:incident-ns:incident-backend-sa" \
+  --audience api://AzureADTokenExchange
+
+# 5. Grant Managed Identity access to Key Vault secrets
+KV_ID=$(az keyvault show --name kv-incident-prod --resource-group $RESOURCE_GROUP --query id -o tsv)
+az role assignment create \
+  --role "Key Vault Secrets User" \
+  --assignee-object-id $MI_PRINCIPAL_ID \
+  --scope $KV_ID
+
+# 6. Grant Managed Identity access to Cosmos DB (built-in data contributor)
+COSMOS_ID=$(az cosmosdb show --name cosmos-incident-prod --resource-group $RESOURCE_GROUP --query id -o tsv)
+az role assignment create \
+  --role "Cosmos DB Built-in Data Contributor" \
+  --assignee-object-id $MI_PRINCIPAL_ID \
+  --scope $COSMOS_ID
+
+# 7. Grant access to Azure OpenAI
+OAI_ID=$(az cognitiveservices account show --name oai-incident-prod --resource-group $RESOURCE_GROUP --query id -o tsv)
+az role assignment create \
+  --role "Cognitive Services OpenAI User" \
+  --assignee-object-id $MI_PRINCIPAL_ID \
+  --scope $OAI_ID
+```
+
+### Helm chart
+
+```yaml
+# helm/Chart.yaml
+apiVersion: v2
+name: incident-troubleshooter
+description: Azure AI Incident Troubleshooter backend
+version: 0.2.0
+appVersion: "2.0.0"
+```
+
+```yaml
+# helm/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: incident-backend
+  namespace: incident-ns
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: incident-backend
+  template:
+    metadata:
+      labels:
+        app: incident-backend
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: incident-backend-sa
+      containers:
+        - name: api
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: KEY_VAULT_URL
+              value: {{ .Values.keyVaultUrl }}
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+```
+
+```yaml
+# helm/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: incident-backend-sa
+  namespace: incident-ns
+  annotations:
+    azure.workload.identity/client-id: {{ .Values.managedIdentityClientId }}
+```
+
+---
+
+## Phase 14: Security architecture
+
+<DiagramImage
+  src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/Azure_AI_Security_u8y4hy"
+  alt="Security architecture showing four defence layers for the Azure AI Incident Troubleshooter. Layer 1 — Network: Azure Front Door with WAF (OWASP CRS 3.2), APIM with IP allowlist and rate limiting, AKS private cluster with private node IPs, NSG deny-all inbound. Layer 2 — Identity: Workload Identity (OIDC federation, no client secrets), Entra ID authentication for frontend users, Managed Identity with least-privilege RBAC (Key Vault Secrets User, Cosmos DB Built-in Data Contributor, Cognitive Services OpenAI User). Layer 3 — Data: Key Vault soft-delete 90 days for all secrets, Cosmos DB encryption at rest (Microsoft-managed key), private endpoints for Cosmos DB and AI Search so data plane is not exposed to public internet, TLS 1.2+ for all service-to-service communication. Layer 4 — Application: FastAPI input validation (Pydantic models), 100 req/min rate limiting per IP at APIM, prompt injection detection (content Safety API for high-severity incidents), CORS allowlist, audit trail (rawLlmResponse stored per analysis for forensic review)."
+  caption="Defence in depth: WAF + APIM (network) → Workload Identity (identity) → Key Vault + private endpoints (data) → Pydantic + rate limiting + audit trail (application)."
+/>
+
+**Key security decisions:**
+
+1. **No client secrets in code or environment variables.** Key Vault holds all service credentials. Workload Identity lets the pod fetch them via OIDC federation — no `COSMOS_KEY` in the Kubernetes Secret manifest.
+
+2. **Prompt injection awareness.** The system prompt instructs GPT-4o to answer only from retrieved context and to flag uncertainty. For critical-severity incidents, route the incident description through Azure Content Safety before embedding to detect adversarial prompt injections in engineer-submitted text.
+
+3. **Audit trail.** The raw GPT-4o response is stored in `AnalysisResult.rawLlmResponse`. If an AI recommendation causes an incorrect remediation action, you can audit exactly what the model said. Do not delete this field.
+
+4. **Private endpoints.** Cosmos DB and AI Search data-plane endpoints are accessible only within the VNet. The AKS pod connects over a private IP. The public endpoint is disabled on both services.
+
+---
+
+## Phase 15: CI/CD pipeline
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest ruff
+
+      - name: Lint
+        run: ruff check backend/app/
+
+      - name: Test
+        run: pytest backend/tests/ -v
+
+  build-and-push:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build and push
+        run: |
+          IMAGE_TAG="${{ secrets.ACR_NAME }}.azurecr.io/incident-backend:${{ github.sha }}"
+          docker build -t $IMAGE_TAG backend/
+          docker push $IMAGE_TAG
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_TAG }}
+          format: table
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+```
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy-staging:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set AKS context
+        run: |
+          az aks get-credentials \
+            --resource-group rg-incident-staging \
+            --name aks-incident-staging
+
+      - name: Helm deploy staging
+        run: |
+          helm upgrade --install incident-troubleshooter ./helm \
+            --namespace incident-ns \
+            --create-namespace \
+            --set image.repository=${{ secrets.ACR_NAME }}.azurecr.io/incident-backend \
+            --set image.tag=${{ github.sha }} \
+            --set keyVaultUrl=${{ secrets.KV_URL_STAGING }} \
+            --set managedIdentityClientId=${{ secrets.MI_CLIENT_ID_STAGING }} \
+            --wait --timeout 5m
+
+  deploy-prod:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production  # requires manual approval in GitHub Environments
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set AKS context
+        run: |
+          az aks get-credentials \
+            --resource-group rg-incident-prod \
+            --name aks-incident-prod
+
+      - name: Helm deploy prod
+        run: |
+          helm upgrade --install incident-troubleshooter ./helm \
+            --namespace incident-ns \
+            --create-namespace \
+            --set image.repository=${{ secrets.ACR_NAME }}.azurecr.io/incident-backend \
+            --set image.tag=${{ github.sha }} \
+            --set keyVaultUrl=${{ secrets.KV_URL_PROD }} \
+            --set managedIdentityClientId=${{ secrets.MI_CLIENT_ID_PROD }} \
+            --set replicaCount=3 \
+            --wait --timeout 10m
+```
+
+---
+
+## Phase 16: Cost estimates
+
+These figures are approximate for a low-to-medium volume incident management tool (~500 incidents/month, 10–20 daily active engineers).
+
+| Service | SKU / tier | Estimated monthly cost |
+|---------|-----------|------------------------|
+| Azure OpenAI GPT-4o | ~50K input tokens + 10K output tokens/month | ~$5–15 |
+| Azure OpenAI text-embedding-3-small | ~100K tokens/month | ~$0.02 |
+| Azure AI Search | Basic (1 replica, 1 partition) | ~$75 |
+| Cosmos DB | 11 containers × 400 RU/s serverless is cheaper; manual 400 RU/s × 11 = $4.40/hr | Serverless: ~$10–30 |
+| AKS | 2× Standard_D2s_v3 nodes | ~$140 |
+| Azure Static Web Apps | Free tier | $0 |
+| Azure Front Door | Standard | ~$35 |
+| Azure Container Registry | Basic | ~$5 |
+| Key Vault | Standard | ~$1 |
+| **Total** | | **~$270–310/month** |
+
+> Cosmos DB provisioned throughput (400 RU/s × 11 containers) adds up quickly. For a tool used intermittently, switch all containers to serverless mode — cost scales to zero when idle and is typically 60–80% cheaper for low-volume workloads. The trade-off is no throughput guarantee and no multi-region writes in serverless mode.
+
+---
+
+## Phase 17: Monitoring and alerting
+
+```bash
+# Create a Log Analytics workspace for AKS diagnostics
+az monitor log-analytics workspace create \
+  --resource-group $RESOURCE_GROUP \
+  --workspace-name log-incident-prod \
+  --location $LOCATION
+
+# Enable Container Insights on AKS
+AKS_ID=$(az aks show --name aks-incident-prod --resource-group $RESOURCE_GROUP --query id -o tsv)
+LOG_ID=$(az monitor log-analytics workspace show --workspace-name log-incident-prod --resource-group $RESOURCE_GROUP --query id -o tsv)
+
+az monitor diagnostic-settings create \
+  --resource $AKS_ID \
+  --name diag-aks-incident \
+  --workspace $LOG_ID \
+  --metrics '[{"category": "AllMetrics", "enabled": true}]' \
+  --logs '[{"category": "kube-apiserver", "enabled": true}, {"category": "kube-controller-manager", "enabled": true}]'
+```
+
+**Key metrics to alert on:**
+
+| Metric | Alert threshold | Action |
+|--------|-----------------|--------|
+| GPT-4o error rate (5xx from OpenAI) | > 5% in 5 min | Page on-call; check OpenAI service health |
+| Cosmos DB 429 (throttled) | Any in 5 min | Scale up RU/s or switch to serverless |
+| AI Search latency (p99) | > 2000ms | Check index fragmentation; consider Standard tier |
+| AKS pod restart count | > 3 in 10 min | Check OOM kills; increase memory limits |
+| Analysis failure rate | > 10% in 15 min | Check GPT-4o deployment; review SYSTEM_PROMPT |
+
+---
+
+## What you'd do differently in production
+
+This guide makes several choices that are appropriate for learning but need revisiting before a production hardening review:
+
+**Cosmos DB serverless vs. provisioned throughput.** The guide provisions 400 RU/s per container for simplicity. In production, audit actual usage patterns first. Most incident tools are bursty — serverless is cheaper unless you have sustained high traffic.
+
+**GPT-4o JSON mode reliability.** `response_format: {"type": "json_object"}` reduces but does not eliminate malformed responses. Add a retry with exponential backoff (up to 3 attempts) before surfacing a parse error to the user.
+
+**The list_all cross-partition scan.** The `GET /incidents/` endpoint does a full cross-partition scan limited to 100 items. This is fine at low volume. At 10,000+ incidents, add a read-optimised index container (updated via Cosmos Change Feed) with summary fields only, sorted by `createdAt`.
+
+**Runbook versioning.** When a runbook is updated, existing `IncidentRunbook` links still point to the old content. Either version runbooks explicitly (immutable chunks, new IDs on update) or add a `runbookVersion` field to the junction entity.
+
+**Confidence score calibration.** GPT-4o's self-reported confidence is not calibrated. A score of 0.8 does not mean 80% accuracy. Treat it as a relative indicator (higher = model found strong runbook matches) rather than an absolute probability. Build a feedback loop using the `Feedback` entity to measure whether high-confidence recommendations actually resolved incidents.
