@@ -1,0 +1,506 @@
+---
+title: 'Fixing Azure WAF False Positives: A 7-Phase Diagnostic Guide'
+date: '2026-07-02'
+summary: 'If Azure WAF is blocking legitimate traffic after a policy update, new deployment, or rule set upgrade, false positives are the most common cause. This guide walks through 7 diagnostic phases to identify, reproduce, and safely exclude the offending rule — without disabling WAF protection.'
+tags: ['Azure', 'WAF', 'Security', 'Networking', 'Troubleshooting', 'Application Gateway']
+postType: troubleshooting
+featured: true
+authors: ['NVN']
+membersOnly: false
+draft: false
+coverImage: '/images/blog/azure-waf-troubleshooting-cover.svg'
+---
+
+If users are suddenly getting 403 errors that weren't there yesterday, or a deployment pipeline that was green last week is now failing health checks, Azure WAF is the first place to look. A WAF false positive — where the firewall blocks a legitimate request because it pattern-matches a security rule — is one of the most common causes of unexplained production incidents in Azure environments.
+
+The mistake most teams make is toggling WAF to Detection mode to stop the bleeding, then never fixing the root cause. This guide gives you a repeatable 7-phase process to diagnose exactly which rule fired, reproduce the block in a test environment, scope the minimum exclusion required, and validate that you haven't inadvertently opened a gap.
+
+---
+
+## Symptoms This Guide Covers
+
+- Users receiving HTTP 403 with body `The request was blocked by the web application firewall` after a code deployment
+- New API endpoints returning 403 immediately after launch
+- File uploads failing with no client-side error (WAF drops the request silently from the client's perspective)
+- Specific HTTP methods or content-types blocked inconsistently across environments
+- WAF in Detection mode generates alerts but no blocks — after switching to Prevention mode, things break
+- A third-party integration (webhook, payment gateway, CI runner) returns 403 that works fine from outside Azure
+
+---
+
+## Understanding Azure WAF Architecture
+
+Azure WAF runs in two deployment modes: attached to **Application Gateway** (regional, OSI layer 7) or attached to **Azure Front Door** (global edge). The rule engine is the same — OWASP Core Rule Set (CRS) plus Microsoft-managed rules — but the log schemas, exclusion configuration, and diagnostic settings differ between the two.
+
+<DiagramImage
+  src="https://res.cloudinary.com/ybcsc7rq/image/upload/f_auto,q_auto/WAF_Arch_r8capu"
+  alt="Azure WAF reference architecture showing four panels: (1) Typical deployment — Internet traffic enters Azure Front Door or Application Gateway WAF, passes through rule inspection, reaches App Service or AKS backend. (2) Request flow through the rule engine — request matched against IP reputation, protocol enforcement, OWASP CRS rule groups (SQLi 942xxx, XSS 941xxx, LFI 930xxx, RCE 932xxx), then allowed or blocked. (3) Monitoring integration — WAF logs flow to Log Analytics workspace, Diagnostic settings feed Azure Monitor alerts, KQL queries surface blocked requests. (4) Troubleshooting methodology — Detection mode, log query, rule lookup, exclusion scoping, Prevention mode."
+  caption="Azure WAF architecture: request flow, rule engine inspection order, log path to Log Analytics, and the tuning loop from Detection to Prevention mode."
+/>
+
+**Key structural points to understand before diagnosing:**
+
+- WAF evaluates rules in order. A request that matches an IP reputation rule (910xxx) is blocked before OWASP CRS rules (920xxx–944xxx) are evaluated.
+- In **Detection mode**, matched requests are logged but not blocked. Use this for initial observation but never as a permanent state.
+- In **Prevention mode**, matched requests are blocked with a 403. This is the production state you need to return to after exclusions are in place.
+- A single request can match multiple rules. The logs show all matched rules, but only the highest-priority match causes the block.
+
+---
+
+## OWASP CRS Rule ID Reference
+
+Before querying logs, knowing which rule ID range covers which attack category helps you interpret results faster.
+
+| Rule ID range | Category | Common false positive trigger |
+|--------------|----------|-------------------------------|
+| 910100–910999 | IP reputation (client IP) | NAT/proxy exit IPs flagged by GeoIP lists |
+| 911100–911999 | Method enforcement | Uncommon HTTP methods (PATCH, PROPFIND) in REST APIs |
+| 912000–912999 | DoS protection | Burst traffic from CI load tests, batch jobs |
+| 913100–913999 | Scanner detection | Security scanner headers in pen test tools |
+| 920100–920999 | Protocol enforcement | Non-standard `Content-Type`, chunked encoding, large cookies |
+| 921100–921999 | Protocol attack | HTTP request smuggling patterns in custom headers |
+| 930100–930999 | Local file inclusion (LFI) | File path parameters like `../`, Windows paths |
+| 931100–931999 | Remote file inclusion (RFI) | URL parameters containing full `http://` URIs |
+| 932100–932999 | Remote code execution (RCE) | Shell characters in form fields, search queries |
+| 933100–933999 | PHP injection | PHP function names in content (`base64_decode`, `eval`) |
+| 941100–941999 | Cross-site scripting (XSS) | HTML in rich text editors, Markdown APIs, SVG uploads |
+| 942100–942999 | SQL injection | SQL-like syntax in search fields, JWT payloads, base64-encoded data |
+| 943100–943999 | Session fixation | Cookie names or parameters resembling session identifiers |
+| 944100–944999 | Java attacks | Java class names in payloads, JNDI-like patterns |
+
+> Rule set versions change. The ranges above are based on OWASP CRS 3.2. If you're on DRS 2.1 (Default Rule Set, Microsoft-managed), rule IDs may differ. Always cross-reference with the actual rule ID from your logs.
+
+---
+
+## Phase 1 — Collect Impact Data
+
+Before touching any WAF configuration, establish the scope of the problem.
+
+**Questions to answer before proceeding:**
+
+1. Which endpoint is being blocked? (method + URI)
+2. Which client IPs or user agents are affected?
+3. When did it start? (correlate with deployments, rule set updates, or config changes)
+4. Is it 100% of requests to this endpoint, or intermittent?
+5. Does it happen in DEV/UAT too, or only PROD?
+
+Check for recent WAF policy changes:
+
+```bash
+# List recent WAF policy update operations in Activity Log
+az monitor activity-log list \
+  --resource-group rg-prod \
+  --resource-type "Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies" \
+  --start-time "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
+  --query "[].{time: eventTimestamp, op: operationName.value, caller: caller, status: status.value}" \
+  --output table
+```
+
+If the timeline shows a WAF policy update or a rule set version upgrade coinciding with when the 403s started, that's your culprit. Skip to Phase 3.
+
+---
+
+## Phase 2 — Query WAF Logs
+
+WAF blocked-request details live in Log Analytics. The table and field names differ between Application Gateway and Front Door.
+
+### Application Gateway WAF Logs
+
+```kusto
+AzureDiagnostics
+| where ResourceType == "APPLICATIONGATEWAYS"
+| where Category == "ApplicationGatewayFirewallLog"
+| where TimeGenerated > ago(2h)
+| where action_s == "Blocked"
+| project
+    TimeGenerated,
+    clientIp = clientIp_s,
+    requestUri = requestUri_s,
+    method = Message,
+    ruleId = ruleId_s,
+    ruleGroup = ruleGroup_s,
+    message = details_message_s,
+    matchedData = details_data_s,
+    matchedField = details_file_s
+| order by TimeGenerated desc
+```
+
+Aggregate by rule to see the highest-volume blocks:
+
+```kusto
+AzureDiagnostics
+| where ResourceType == "APPLICATIONGATEWAYS"
+| where Category == "ApplicationGatewayFirewallLog"
+| where TimeGenerated > ago(24h)
+| where action_s == "Blocked"
+| summarize
+    count = count(),
+    sampleUri = any(requestUri_s),
+    sampleData = any(details_data_s)
+    by ruleId_s, details_message_s
+| order by count desc
+```
+
+### Front Door WAF Logs
+
+```kusto
+AzureDiagnostics
+| where Category == "FrontdoorWebApplicationFirewallLog"
+| where TimeGenerated > ago(2h)
+| where action_s == "Block"
+| project
+    TimeGenerated,
+    clientIp = clientIp_s,
+    requestUri = requestUri_s,
+    ruleName = ruleName_s,
+    action = action_s,
+    matchedData = details_matches_s,
+    policyMode = policyMode_s
+| order by TimeGenerated desc
+```
+
+**What to look for in the output:**
+
+- `ruleId_s` (App Gateway) / `ruleName_s` (Front Door): the specific rule that fired. This is what you'll need in Phase 3.
+- `details_data_s` / `details_matches_s`: the actual payload fragment that matched. This tells you exactly what the WAF found suspicious.
+- `details_file_s`: which request field was inspected (REQUEST_HEADERS, REQUEST_URI, ARGS, REQUEST_BODY).
+- `requestUri_s`: the path. If it's always the same endpoint, scope your exclusion to that path.
+
+---
+
+## Phase 3 — Identify the Rule
+
+Once you have the rule ID, look it up in the Microsoft documentation or the OWASP CRS GitHub repository to understand what it's designed to detect.
+
+```bash
+# List available rule sets and their rules for App Gateway WAF
+az network application-gateway waf-policy managed-rule rule-set list \
+  --resource-group rg-prod \
+  --policy-name waf-policy-prod \
+  --output table
+
+# Show which rules are currently active in a specific rule group
+az network application-gateway waf-policy managed-rule ruleset add \
+  --resource-group rg-prod \
+  --policy-name waf-policy-prod \
+  --type OWASP \
+  --version 3.2 \
+  --group-name SQLI
+```
+
+The matched data from the log tells you exactly what triggered it. Common patterns you'll see:
+
+| Matched data fragment | Rule triggering | Typical cause |
+|-----------------------|-----------------|---------------|
+| `select`, `union`, `from` | 942xxx (SQLi) | Search field with SQL-like keywords |
+| `<script`, `onerror=`, `javascript:` | 941xxx (XSS) | Rich-text editor HTML output |
+| `../`, `..\`, `/etc/passwd` | 930xxx (LFI) | File path in URL parameter |
+| `Authorization: Bearer eyJ...` | 942xxx (SQLi) | JWT decode to base64 that resembles SQL |
+| `multipart/form-data` body with binary | 920xxx (Protocol) | File upload with unusual content type |
+| Class names: `com.sun.`, `java.lang.` | 944xxx (Java) | Java serialization in API payload |
+
+The JWT base64 false positive is especially common: a JWT payload decoded to base64 may contain fragments that pattern-match SQLi rules because SQL keywords are common English words that appear in data.
+
+---
+
+## Phase 4 — Reproduce the False Positive
+
+Before writing any exclusion, reproduce the block in a non-production environment. This confirms your diagnosis and gives you a test case to validate against after the exclusion is applied.
+
+```bash
+# Reproduce using curl — send the request that's failing
+# Replace with your actual endpoint and headers
+curl -v \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{"query": "SELECT name FROM products WHERE category = ?", "params": ["electronics"]}' \
+  "https://api-dev.contoso.com/search"
+
+# Expected: 403 with WAF block message
+# HTTP/1.1 403 Forbidden
+# Content-Type: text/html
+# "The request was blocked by the web application firewall"
+```
+
+If DEV has WAF in Detection mode (logs but doesn't block), temporarily switch it to Prevention to reproduce:
+
+```bash
+az network application-gateway waf-policy update \
+  --resource-group rg-dev \
+  --name waf-policy-dev \
+  --state Enabled \
+  --mode Prevention
+```
+
+Remember to return it to Detection after testing.
+
+**If you cannot reproduce in DEV:** The block may be caused by a specific payload that's hard to construct, a specific client IP in an IP reputation list, or a difference in WAF policy version between environments. In that case, check whether DEV and PROD use the same rule set version.
+
+---
+
+## Phase 5 — Decide: Tune or Accept
+
+Not every WAF block warrants an exclusion. Before writing one, answer these:
+
+1. **Is the matched pattern actually dangerous from this field?** A `<script>` tag in a JSON API body field that your application renders as a string (never as HTML) is a real false positive — the WAF is overfiring because the payload looks like XSS, but your application doesn't render it. An exclusion is warranted.
+
+2. **Is the matched pattern dangerous from this field but your application sanitizes it?** If your application sanitizes all user input before rendering (CSP header, output encoding, parameterized queries), the WAF block is defense in depth. You can exclude it, but document why your application-layer controls are sufficient.
+
+3. **Is the pattern actually dangerous and your application is vulnerable?** If so, the WAF is doing its job. Fix the application, not the WAF rule.
+
+4. **Is this a developer convenience (Postman, CI runner) that shouldn't hit production endpoints?** Don't tune WAF for developer tooling. Adjust your tooling instead.
+
+---
+
+## Phase 6 — Configure the Exclusion
+
+The minimum exclusion principle: scope your exclusion to the **narrowest combination** of rule, field, and path that resolves the false positive. Broad exclusions like "disable rule 942100 globally" weaken your posture unnecessarily.
+
+### Three-Axis Exclusion Model
+
+Every exclusion has three axes:
+
+| Axis | What it scopes | Examples |
+|------|---------------|----------|
+| **Match variable** | Which part of the request to exclude from inspection | `RequestHeaderNames`, `RequestArgNames`, `RequestBodyPostArgNames`, `RequestCookieNames` |
+| **Selector operator** | How to match the field name | `Equals`, `StartsWith`, `EndsWith`, `Contains` |
+| **Selector value** | The specific field name to exclude | `authorization`, `search`, `content` |
+
+An exclusion of `RequestHeaderNames Equals authorization` tells WAF: "do not inspect the `authorization` header against any rule." This is appropriate if the Authorization JWT triggers SQLi rules, because:
+- The header is signed and tamper-evident
+- Your backend validates the JWT before using it
+- The token value is never rendered or executed
+
+### Azure CLI — Add an Exclusion
+
+```bash
+# Exclude the Authorization header from all rule inspection (App Gateway WAF policy)
+az network application-gateway waf-policy exclusion add \
+  --resource-group rg-prod \
+  --policy-name waf-policy-prod \
+  --match-variable "RequestHeaderNames" \
+  --selector "authorization" \
+  --selector-match-operator "Equals"
+
+# Verify the exclusion was applied
+az network application-gateway waf-policy show \
+  --resource-group rg-prod \
+  --policy-name waf-policy-prod \
+  --query "managedRules.exclusions" \
+  --output table
+```
+
+For a search parameter that triggers SQLi rules:
+
+```bash
+# Exclude the 'q' query parameter from SQLi rule group inspection
+az network application-gateway waf-policy exclusion add \
+  --resource-group rg-prod \
+  --policy-name waf-policy-prod \
+  --match-variable "RequestArgNames" \
+  --selector "q" \
+  --selector-match-operator "Equals"
+```
+
+### Bicep/ARM — Exclusion in IaC
+
+Always codify exclusions in infrastructure-as-code. A WAF exclusion applied only through the portal will be overwritten the next time Terraform or Bicep runs against the same policy.
+
+```bicep
+resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies@2023-11-01' = {
+  name: 'waf-policy-prod'
+  location: location
+  properties: {
+    managedRules: {
+      managedRuleSets: [
+        {
+          ruleSetType: 'OWASP'
+          ruleSetVersion: '3.2'
+        }
+      ]
+      exclusions: [
+        {
+          // Exclude Authorization header from all rule inspection
+          // Justification: JWT tokens contain base64-encoded data that
+          // pattern-matches SQLi rules 942xxx. JWTs are validated server-side
+          // before use and never rendered as HTML.
+          matchVariable: 'RequestHeaderNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'authorization'
+        }
+        {
+          // Exclude 'q' search parameter from SQLi inspection
+          // Justification: full-text search field accepts arbitrary user text.
+          // SQL injection is prevented by parameterized queries in the API layer.
+          matchVariable: 'RequestArgNames'
+          selectorMatchOperator: 'Equals'
+          selector: 'q'
+        }
+      ]
+    }
+    policySettings: {
+      state: 'Enabled'
+      mode: 'Prevention'
+      requestBodyCheck: true
+      maxRequestBodySizeInKb: 128
+      fileUploadLimitInMb: 100
+    }
+  }
+}
+```
+
+### Common False Positive Patterns and Fixes
+
+| Scenario | Triggering rule(s) | Root cause | Exclusion |
+|----------|-------------------|------------|-----------|
+| JWT in Authorization header | 942100, 942200 (SQLi) | Base64 payload decodes to SQL-like fragments | `RequestHeaderNames Equals authorization` |
+| Rich text / Markdown editor content | 941100, 941150 (XSS) | HTML tags in POST body | `RequestBodyPostArgNames Equals content` |
+| File path parameter | 930100, 930110 (LFI) | `../` in file system traversal field | `RequestArgNames Equals filepath` |
+| Webhook payload from third-party | 920xxx, 942xxx | Webhook body contains encoded data | `RequestBodyPostArgNames Equals payload` |
+| Full-text search parameter | 942100, 942200 (SQLi) | SQL keywords in natural language search | `RequestArgNames Equals q` |
+| GraphQL query body | 932xxx, 942xxx | GraphQL DSL resembles code injection | `RequestBodyPostArgNames Equals query` |
+| OpenAPI/Swagger JSON payload | 942xxx | Schema contains SQL type names | `RequestBodyPostArgNames Equals schema` |
+
+---
+
+## Phase 7 — Validate and Monitor
+
+After applying the exclusion, validate in this order:
+
+**1. Re-run the reproduction request:**
+
+```bash
+# The same curl command from Phase 4 should now return 200
+curl -v \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{"query": "SELECT name FROM products WHERE category = ?", "params": ["electronics"]}' \
+  "https://api-dev.contoso.com/search"
+# Expected: 200 OK
+```
+
+**2. Verify the rule no longer fires in logs:**
+
+```kusto
+AzureDiagnostics
+| where ResourceType == "APPLICATIONGATEWAYS"
+| where Category == "ApplicationGatewayFirewallLog"
+| where TimeGenerated > ago(30m)
+| where requestUri_s contains "/search"
+| where action_s == "Blocked"
+| project TimeGenerated, ruleId_s, requestUri_s, details_data_s
+```
+
+If the exclusion is working, this query returns no results for requests to `/search`.
+
+**3. Confirm WAF is still blocking actual attacks on the excluded field:**
+
+Exclusions scope by field name, not by field value. An exclusion on `RequestArgNames Equals q` prevents WAF from inspecting the `q` parameter, but WAF still inspects every other parameter. Verify this by sending a genuine attack pattern on a *different* parameter:
+
+```bash
+# This should still be blocked — WAF still inspects 'category'
+curl -v "https://api-dev.contoso.com/search?q=normal&category=<script>alert(1)</script>"
+# Expected: 403 Blocked
+```
+
+**4. Switch back to Prevention mode and run your full test suite:**
+
+```bash
+az network application-gateway waf-policy update \
+  --resource-group rg-prod \
+  --name waf-policy-prod \
+  --state Enabled \
+  --mode Prevention
+```
+
+Run your integration tests or Playwright/k6 suite against the environment. Any remaining false positives will surface as 403 failures.
+
+**5. Set an alert for new WAF blocks after the change:**
+
+```bash
+az monitor scheduled-query create \
+  --resource-group rg-prod \
+  --name "WAF-NewBlocksAfterTuning" \
+  --scopes "/subscriptions/.../resourceGroups/rg-prod/providers/microsoft.operationalinsights/workspaces/log-prod" \
+  --condition-query "AzureDiagnostics | where ResourceType == 'APPLICATIONGATEWAYS' | where Category == 'ApplicationGatewayFirewallLog' | where action_s == 'Blocked' | summarize count() by bin(TimeGenerated, 5m)" \
+  --condition-time-aggregation "Count" \
+  --condition-operator "GreaterThan" \
+  --condition-threshold 50 \
+  --evaluation-frequency "PT5M" \
+  --window-size "PT5M" \
+  --severity 2 \
+  --action-groups "/subscriptions/.../resourceGroups/rg-prod/providers/microsoft.insights/actionGroups/ag-network"
+```
+
+A spike in blocks after WAF tuning indicates either a new attack pattern, a deployment that introduced a new endpoint WAF hasn't been tuned for, or an exclusion that wasn't broad enough.
+
+---
+
+## Deployment Practices That Prevent WAF-Induced Outages
+
+Most WAF false positive incidents are deployment failures in disguise. These practices make them preventable:
+
+**Deploy WAF policy changes separately from application code.** A combined deployment that changes both the application and the WAF policy makes it impossible to know which change caused the 403. Deploy the WAF policy first, observe logs for 30 minutes, then deploy the application.
+
+**Run WAF in Detection mode for 48 hours after a rule set version upgrade.** The difference between OWASP CRS 3.1 and 3.2, or between DRS 2.0 and DRS 2.1, can introduce new rules that your application has never been tested against. Detection mode gives you visibility before Prevention mode blocks real users.
+
+**Include WAF log queries in your incident runbook.** Teams that haven't diagnosed a WAF false positive before lose 30+ minutes trying to find the right Log Analytics table. Pre-write the queries and link them from your on-call runbook.
+
+**Gate deployments on WAF log checks.** After deploying to a staging environment, add a build step that queries WAF logs for new blocks and fails the pipeline if any appear:
+
+```bash
+# Post-deployment WAF check — fail if new blocks appear after deploy
+BLOCK_COUNT=$(az monitor log-analytics query \
+  --workspace "/subscriptions/.../workspaces/log-staging" \
+  --analytics-query "AzureDiagnostics | where Category == 'ApplicationGatewayFirewallLog' | where TimeGenerated > ago(5m) | where action_s == 'Blocked' | count" \
+  --query "[0].Count" \
+  --output tsv)
+
+if [ "$BLOCK_COUNT" -gt "0" ]; then
+  echo "WAF blocked $BLOCK_COUNT requests after deployment — investigate before promoting to production"
+  exit 1
+fi
+```
+
+---
+
+## Governance: Auditing Exclusions Over Time
+
+WAF exclusions accumulate. An exclusion added in 2023 for a now-deprecated endpoint may still be active, silently widening the attack surface. Build a quarterly review process:
+
+```kusto
+// Show all active exclusions and whether each excluded field is still receiving traffic
+// Run in your Log Analytics workspace
+AzureDiagnostics
+| where ResourceType == "APPLICATIONGATEWAYS"
+| where Category == "ApplicationGatewayFirewallLog"
+| where TimeGenerated > ago(90d)
+// Get distinct request fields that WAF inspected in the last 90 days
+| summarize lastSeen = max(TimeGenerated) by details_file_s
+| order by lastSeen asc
+```
+
+Cross-reference the output against your current exclusion list. Any exclusion that covers a field or path with no traffic in the past 90 days is a candidate for removal.
+
+When documenting an exclusion in Bicep or Terraform, always include:
+- **Justification**: why the false positive occurs (e.g., "JWT contains base64 payload matching SQLi pattern")
+- **Compensating control**: what other security control makes this safe (e.g., "JWT validated server-side, never rendered as HTML")
+- **Review date**: when this exclusion should be reviewed (e.g., "review when upgrading from OWASP CRS 3.2 to 3.3")
+
+---
+
+## Key Takeaways
+
+1. **Never disable WAF entirely to fix a false positive.** Switching to Detection mode is acceptable for diagnosis, but Prevention must be restored. Disabling WAF to fix a false positive trades a user-facing 403 for unchecked inbound attacks.
+
+2. **The minimum exclusion principle.** Scope every exclusion to the narrowest combination of match variable, selector, and path. `RequestArgNames Equals q` is better than `RequestArgNames StartsWith any`.
+
+3. **Reproduce before excluding.** If you can't reproduce the false positive in a test environment with the same request, you don't fully understand what WAF is reacting to. An exclusion based on guesswork may miss the actual trigger or exclude too broadly.
+
+4. **Codify exclusions in IaC immediately.** A WAF exclusion applied only through the portal will be lost on the next Terraform/Bicep apply. The exclusion exists to allow legitimate traffic — losing it means users get blocked again unexpectedly.
+
+5. **Rule set upgrades need their own deployment window.** Upgrading from CRS 3.1 to 3.2 or from DRS 2.0 to 2.1 is not a zero-risk change. Treat it as a deployment that needs Detection mode observation and a rollback plan.
+
+6. **Log retention matters.** WAF logs are critical for post-incident diagnosis. Set Log Analytics retention to at least 30 days. If you're in a regulated industry, extend to 90+ days and consider exporting to storage for long-term archival.
